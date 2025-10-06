@@ -42,4 +42,65 @@ jobs:
           # Ensure we are inside the android/ folder
           pwd
 
-          if [ -n "$]()
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding existing keystore from secrets…"
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+          else
+            echo "No keystore secrets found. Creating a NEW keystore (one-time)…"
+            KS_PASS=$(openssl rand -hex 16)
+            KEY_PASS=$(openssl rand -hex 16)
+            ALIAS="adhdone"
+
+            keytool -genkeypair -v \
+              -keystore release.keystore \
+              -storepass "$KS_PASS" -keypass "$KEY_PASS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -alias "$ALIAS" \
+              -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
+
+            echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$KEY_PASS"   >> $GITHUB_ENV
+            echo "KEY_ALIAS=$ALIAS"         >> $GITHUB_ENV
+
+            # export base64 so you can save it as a Secret for future builds
+            base64 release.keystore > my-release.keystore.base64
+
+            echo "========== SAVE THESE IN GITHUB SECRETS (one-time) =========="
+            echo "KEYSTORE_PASSWORD=$KS_PASS"
+            echo "KEY_PASSWORD=$KEY_PASS"
+            echo "KEY_ALIAS=$ALIAS"
+            echo "============================================================="
+          fi
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      # This will now produce a SIGNED release because your project
+      # has a 'release' signingConfig pointing to file('release.keystore')
+      - name: Build signed release APK (Gradle)
+        run: ./gradlew assembleRelease
+
+      # Print SHA-256 from the signed APK Gradle produced
+      - name: Print signing certificate (SHA-256)
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK" ]; then
+            echo "Signed APK not found at $APK. Listing outputs:"
+            ls -R app/build/outputs/apk || true
+            exit 1
+          fi
+          echo "----- SHA-256 digest (copy and remove colons for JSON) -----"
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | sed -n 's/.*SHA-256 digest: //p'
+
+      - name: Upload APK (and keystore base64 if newly created)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ADHDone-build-output
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/my-release.keystore.base64
+          if-no-files-found: ignore
+
