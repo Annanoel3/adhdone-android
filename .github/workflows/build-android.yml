@@ -9,7 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # We'll run Gradle in android/, but create the keystore in the repo root
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,8 +29,12 @@ jobs:
           echo "Using: $BT"
           echo "BUILD_TOOLS=$BT" >> $GITHUB_ENV
 
-      # IMPORTANT: create/restore keystore at the REPO ROOT (.. relative to android/app)
-      - name: Prepare keystore at repo root (release.keystore)
+      # Create the keystore EXACTLY as your Gradle file expects:
+      # - repo root: release.keystore
+      # - alias: release
+      # - passwords: password
+      # If Secrets are present, we reuse them; otherwise we create a fresh one.
+      - name: Prepare keystore at REPO ROOT (release.keystore)
         shell: bash
         run: |
           set -e
@@ -39,43 +42,40 @@ jobs:
             echo "Decoding existing keystore from secrets to repo root…"
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
             echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"         >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"               >> $GITHUB_ENV
           else
-            echo "No keystore secrets found. Creating a NEW keystore at repo root…"
-# match your Gradle config exactly
-KS_PASS="password"
-KEY_PASS="password"
-ALIAS="release"
+            echo "No keystore secrets found. Creating keystore that matches your Gradle config…"
+            KS_PASS="password"
+            KEY_PASS="password"
+            ALIAS="release"
 
-keytool -genkeypair -v \
-  -keystore release.keystore \
-  -storepass "$KS_PASS" -keypass "$KEY_PASS" \
-  -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias "$ALIAS" \
-  -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
+            keytool -genkeypair -v \
+              -keystore release.keystore \
+              -storepass "$KS_PASS" -keypass "$KEY_PASS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -alias "$ALIAS" \
+              -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
 
-echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
-echo "KEY_PASSWORD=$KEY_PASS"   >> $GITHUB_ENV
-echo "KEY_ALIAS=$ALIAS"         >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$KEY_PASS"     >> $GITHUB_ENV
+            echo "KEY_ALIAS=$ALIAS"           >> $GITHUB_ENV
 
+            # Export base64 so you can optionally store it as a Secret later
             base64 release.keystore > my-release.keystore.base64
-            echo "========== SAVE THESE IN GITHUB SECRETS (one-time) =========="
-            echo "KEYSTORE_PASSWORD=$KS_PASS"
-            echo "KEY_PASSWORD=$KEY_PASS"
-            echo "KEY_ALIAS=$ALIAS"
-            echo "============================================================="
           fi
-          echo "Placed keystore at: $(pwd)/release.keystore"
-          ls -l release.keystore
 
       - name: Make Gradle wrapper executable
         working-directory: android
         run: chmod +x ./gradlew
 
-      # Build SIGNED release; your gradle config points to file('../release.keystore')
+      # Build a SIGNED release (your build.gradle points to ../../release.keystore)
       - name: Build signed release APK (Gradle)
         working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ env.KEY_ALIAS }}
         run: ./gradlew assembleRelease
 
       - name: Print signing certificate (SHA-256)
@@ -87,7 +87,7 @@ echo "KEY_ALIAS=$ALIAS"         >> $GITHUB_ENV
             ls -R app/build/outputs/apk || true
             exit 1
           fi
-          echo "----- SHA-256 digest (copy and remove colons for JSON) -----"
+          echo "----- SHA-256 digest (copy this, then remove colons for JSON) -----"
           "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | sed -n 's/.*SHA-256 digest: //p'
 
       - name: Upload APK (and keystore base64 if newly created)
@@ -98,3 +98,4 @@ echo "KEY_ALIAS=$ALIAS"         >> $GITHUB_ENV
             android/app/build/outputs/apk/release/app-release.apk
             my-release.keystore.base64
           if-no-files-found: ignore
+
