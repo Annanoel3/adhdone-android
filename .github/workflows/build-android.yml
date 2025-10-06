@@ -1,4 +1,4 @@
-name: Build & Sign Android (no local tools)
+name: Build & Sign Android (Gradle signing)
 
 on:
   workflow_dispatch: {}
@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # <-- run all commands from the android/ subfolder
+    # all commands run inside the android/ subfolder
     defaults:
       run:
         working-directory: android
@@ -34,76 +34,12 @@ jobs:
           echo "Using: $BT"
           echo "BUILD_TOOLS=$BT" >> $GITHUB_ENV
 
-      # Create a keystore if secrets aren't set; else decode the one from Secrets
-      - name: Prepare keystore
+      # Put a keystore where Gradle expects it, and set env vars Gradle reads
+      - name: Prepare keystore at android/release.keystore
         shell: bash
         run: |
           set -e
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding existing keystore from secrets…"
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-release.keystore
-            echo "KS_PASS=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_PASS=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-            echo "ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
-          else
-            echo "No keystore secrets found. Creating a NEW keystore (one-time)…"
-            KS_PASS=$(openssl rand -hex 16)
-            KEY_PASS=$(openssl rand -hex 16)
-            ALIAS="adhdone"
-            keytool -genkeypair -v -keystore my-release.keystore \
-              -storepass "$KS_PASS" -keypass "$KEY_PASS" \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -alias "$ALIAS" \
-              -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
-            echo "KS_PASS=$KS_PASS" >> $GITHUB_ENV
-            echo "KEY_PASS=$KEY_PASS" >> $GITHUB_ENV
-            echo "ALIAS=$ALIAS" >> $GITHUB_ENV
-            base64 my-release.keystore > my-release.keystore.base64
-          fi
+          # Ensure we are inside the android/ folder
+          pwd
 
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-
-      - name: Build unsigned release APK
-        run: ./gradlew assembleRelease
-
-      - name: Find unsigned APK
-        id: findapk
-        shell: bash
-        run: |
-          set -e
-          APK=$(ls app/build/outputs/apk/release/*-release-unsigned.apk 2>/dev/null | head -n 1 || true)
-          if [ -z "$APK" ]; then
-            APK=$(ls app/build/outputs/apk/release/app-release-unsigned.apk)
-          fi
-          echo "apk=$APK" >> $GITHUB_OUTPUT
-          echo "Found unsigned APK: $APK"
-
-      - name: Zipalign
-        run: |
-          "$BUILD_TOOLS/zipalign" -p 4 "${{ steps.findapk.outputs.apk }}" app-aligned.apk
-
-      - name: Sign APK
-        run: |
-          "$BUILD_TOOLS/apksigner" sign \
-            --ks my-release.keystore \
-            --ks-key-alias "$ALIAS" \
-            --ks-pass pass:"$KS_PASS" \
-            --key-pass pass:"$KEY_PASS" \
-            --out app-signed.apk \
-            app-aligned.apk
-
-      - name: Print signing certificate (SHA-256)  # COPY THIS (remove colons for JSON)
-        run: |
-          echo "----- SHA-256 digest -----"
-          "$BUILD_TOOLS/apksigner" verify --print-certs app-signed.apk | sed -n 's/.*SHA-256 digest: //p'
-
-      # upload artifacts from the android/ working dir
-      - name: Upload APK (and keystore base64 if newly created)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ADHDone-build-output
-          path: |
-            android/app/app-signed.apk
-            android/my-release.keystore.base64
-          if-no-files-found: ignore
+          if [ -n "$]()
