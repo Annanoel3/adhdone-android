@@ -1,0 +1,107 @@
+name: Build & Sign Android (no local tools)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Prepare keystore (create once if missing)
+        id: prepks
+        shell: bash
+        run: |
+          set -e
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding existing keystore from secrets…"
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-release.keystore
+            echo "KS_PASS=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_PASS=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+            echo "ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+          else
+            echo "No keystore secrets found. Creating a NEW keystore (one-time)…"
+            KS_PASS=$(openssl rand -hex 16)
+            KEY_PASS=$(openssl rand -hex 16)
+            ALIAS="adhdone"
+            keytool -genkeypair -v -keystore my-release.keystore \
+              -storepass "$KS_PASS" -keypass "$KEY_PASS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -alias "$ALIAS" \
+              -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
+            echo "KS_PASS=$KS_PASS" >> $GITHUB_ENV
+            echo "KEY_PASS=$KEY_PASS" >> $GITHUB_ENV
+            echo "ALIAS=$ALIAS" >> $GITHUB_ENV
+            echo "Created new keystore."
+          fi
+
+      - name: Show how to persist new keystore (first run only)
+        if: ${{ !secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "========== SAVE THESE (first run only) =========="
+          echo "KEYSTORE_PASSWORD=$KS_PASS"
+          echo "KEY_PASSWORD=$KEY_PASS"
+          echo "KEY_ALIAS=$ALIAS"
+          echo "================================================="
+          echo "Exporting keystore as base64 for Secrets…"
+          base64 my-release.keystore > my-release.keystore.base64
+          echo "The base64 file will be uploaded as an artifact."
+          echo "Add it later to: Settings → Secrets → Actions → New secret → KEYSTORE_BASE64"
+          echo "================================================="
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Build unsigned release APK
+        run: ./gradlew assembleRelease
+
+      - name: Find unsigned APK
+        id: findapk
+        run: |
+          set -e
+          APK=$(ls app/build/outputs/apk/release/*-release-unsigned.apk 2>/dev/null | head -n 1 || true)
+          if [ -z "$APK" ]; then
+            APK=$(ls app/build/outputs/apk/release/app-release-unsigned.apk)
+          fi
+          echo "apk=$APK" >> $GITHUB_OUTPUT
+          echo "Found: $APK"
+
+      - name: Zipalign
+        run: |
+          zipalign -p 4 "${{ steps.findapk.outputs.apk }}" app-aligned.apk
+
+      - name: Sign APK
+        run: |
+          $ANDROID_HOME/build-tools/*/apksigner sign \
+            --ks my-release.keystore \
+            --ks-key-alias "$ALIAS" \
+            --ks-pass pass:"$KS_PASS" \
+            --key-pass pass:"$KEY_PASS" \
+            --out app-signed.apk \
+            app-aligned.apk
+
+      - name: Show certificate SHA-256 (copy this to assetlinks.json)
+        run: |
+          echo "----- SHA-256 digest (WITH colons, for reference) -----"
+          $ANDROID_HOME/build-tools/*/apksigner verify --print-certs app-signed.apk | sed -n 's/.*SHA-256 digest: //p'
+          echo "Paste the SAME value into assetlinks.json WITHOUT colons."
+
+      - name: Upload APK (and keystore if newly created)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ADHDone-build-output
+          path: |
+            app-signed.apk
+            my-release.keystore.base64
+          if-no-files-found: ignore
