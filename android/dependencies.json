@@ -1,0 +1,7 @@
+{
+  "core": "2.7.19",
+  "plugins": {
+    "onesignal-legacy": "1.0.3"
+  },
+  "engineVersion": "1.0.44"
+}
