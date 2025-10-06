@@ -43,18 +43,22 @@ jobs:
             echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
           else
             echo "No keystore secrets found. Creating a NEW keystore at repo root…"
-            KS_PASS=$(openssl rand -hex 16)
-            KEY_PASS=$(openssl rand -hex 16)
-            ALIAS="adhdone"
-            keytool -genkeypair -v \
-              -keystore release.keystore \
-              -storepass "$KS_PASS" -keypass "$KEY_PASS" \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -alias "$ALIAS" \
-              -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
-            echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=$KEY_PASS"   >> $GITHUB_ENV
-            echo "KEY_ALIAS=$ALIAS"         >> $GITHUB_ENV
+# match your Gradle config exactly
+KS_PASS="password"
+KEY_PASS="password"
+ALIAS="release"
+
+keytool -genkeypair -v \
+  -keystore release.keystore \
+  -storepass "$KS_PASS" -keypass "$KEY_PASS" \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -alias "$ALIAS" \
+  -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
+
+echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
+echo "KEY_PASSWORD=$KEY_PASS"   >> $GITHUB_ENV
+echo "KEY_ALIAS=$ALIAS"         >> $GITHUB_ENV
+
             base64 release.keystore > my-release.keystore.base64
             echo "========== SAVE THESE IN GITHUB SECRETS (one-time) =========="
             echo "KEYSTORE_PASSWORD=$KS_PASS"
