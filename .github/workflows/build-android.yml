@@ -9,6 +9,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # <-- run all commands from the android/ subfolder
+    defaults:
+      run:
+        working-directory: android
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,7 +24,6 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # Locate newest installed Android build-tools (so paths always work)
       - name: Locate Android build-tools
         id: tools
         run: |
@@ -30,9 +34,8 @@ jobs:
           echo "Using: $BT"
           echo "BUILD_TOOLS=$BT" >> $GITHUB_ENV
 
-      # Create a keystore if secrets aren't set; else decode secrets keystore
+      # Create a keystore if secrets aren't set; else decode the one from Secrets
       - name: Prepare keystore
-        id: prepks
         shell: bash
         run: |
           set -e
@@ -56,14 +59,9 @@ jobs:
             echo "KEY_PASS=$KEY_PASS" >> $GITHUB_ENV
             echo "ALIAS=$ALIAS" >> $GITHUB_ENV
             base64 my-release.keystore > my-release.keystore.base64
-            echo "======== SAVE THESE (add to GitHub Secrets for future builds) ========"
-            echo "KEYSTORE_PASSWORD=$KS_PASS"
-            echo "KEY_PASSWORD=$KEY_PASS"
-            echo "KEY_ALIAS=$ALIAS"
-            echo "======================================================================="
           fi
 
-      - name: Make Gradle executable
+      - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
       - name: Build unsigned release APK
@@ -95,16 +93,17 @@ jobs:
             --out app-signed.apk \
             app-aligned.apk
 
-      - name: Print signing certificate (SHA-256)  # <— this is the one you’ll read
+      - name: Print signing certificate (SHA-256)  # COPY THIS (remove colons for JSON)
         run: |
-          echo "----- SHA-256 digest (copy this; remove colons for JSON) -----"
+          echo "----- SHA-256 digest -----"
           "$BUILD_TOOLS/apksigner" verify --print-certs app-signed.apk | sed -n 's/.*SHA-256 digest: //p'
 
+      # upload artifacts from the android/ working dir
       - name: Upload APK (and keystore base64 if newly created)
         uses: actions/upload-artifact@v4
         with:
           name: ADHDone-build-output
           path: |
-            app-signed.apk
-            my-release.keystore.base64
+            android/app/app-signed.apk
+            android/my-release.keystore.base64
           if-no-files-found: ignore
