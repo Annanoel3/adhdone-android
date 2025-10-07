@@ -2262,27 +2262,36 @@ public class MainActivity extends AppCompatActivity implements Observer,
 
 
     public void openAppBrowser(Uri uri) {
-        if (uri == null) return;
-        try {
-            CustomTabColorSchemeParams params = new CustomTabColorSchemeParams.Builder()
-                    .setToolbarColor(ContextCompat.getColor(this, R.color.colorPrimary))
-                    .setSecondaryToolbarColor(ContextCompat.getColor(this, R.color.titleTextColor))
-                    .build();
+    if (uri == null) return;
 
-            CustomTabsIntent customTabsIntent = new CustomTabsIntent.Builder()
-                    .setDefaultColorSchemeParams(params)
-                    .build();
-            customTabsIntent.intent.setData(uri);
-            appBrowserActivityLauncher.launch(customTabsIntent.intent);
-        } catch (Exception ex) {
-            if (ex instanceof ActivityNotFoundException) {
-                Toast.makeText(this, R.string.app_not_installed, Toast.LENGTH_LONG).show();
-                GNLog.getInstance().logError(TAG, getString(R.string.app_not_installed), ex, GNLog.TYPE_TOAST_ERROR);
-            } else {
-                GNLog.getInstance().logError(TAG, "openAppBrowser: launchError - uri: " + uri, ex);
-            }
+    String host = uri.getHost();
+    if (host != null &&
+        (host.equals("adhdone.space") || host.equals("www.adhdone.space"))) {
+        loadUrl(uri.toString());
+        return;
+    }
+
+    try {
+        CustomTabColorSchemeParams params = new CustomTabColorSchemeParams.Builder()
+                .setToolbarColor(ContextCompat.getColor(this, R.color.colorPrimary))
+                .setSecondaryToolbarColor(ContextCompat.getColor(this, R.color.titleTextColor))
+                .build();
+
+        CustomTabsIntent customTabsIntent = new CustomTabsIntent.Builder()
+                .setDefaultColorSchemeParams(params)
+                .build();
+        customTabsIntent.intent.setData(uri);
+        appBrowserActivityLauncher.launch(customTabsIntent.intent);
+    } catch (Exception ex) {
+        if (ex instanceof ActivityNotFoundException) {
+            Toast.makeText(this, R.string.app_not_installed, Toast.LENGTH_LONG).show();
+            GNLog.getInstance().logError(TAG, getString(R.string.app_not_installed), ex, GNLog.TYPE_TOAST_ERROR);
+        } else {
+            GNLog.getInstance().logError(TAG, "openAppBrowser: launchError - uri: " + uri, ex);
         }
     }
+}
+
 
     @Override
     public boolean onMaxWindowsReached(String url) {
