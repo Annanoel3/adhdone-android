@@ -2231,25 +2231,35 @@ public class MainActivity extends AppCompatActivity implements Observer,
     }
 
     public void openExternalBrowser(Uri uri) {
-        if (uri == null) return;
-        try {
-            Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    if (uri == null) return;
 
-            if (isAppLink(uri)) {
-                // force the URL to launch in the device's default browser to avoid infinite looping bug with AppLink.
-                intent.setPackage(getDefaultBrowserPackageName());
-            }
-            startActivity(intent);
-        } catch (Exception ex) {
-            if (ex instanceof ActivityNotFoundException) {
-                Toast.makeText(this, R.string.app_not_installed, Toast.LENGTH_LONG).show();
-                GNLog.getInstance().logError(TAG, getString(R.string.app_not_installed), ex, GNLog.TYPE_TOAST_ERROR);
-            } else {
-                GNLog.getInstance().logError(TAG, "openExternalBrowser: launchError - uri: " + uri, ex);
-            }
+    // Keep our domain inside the app/WebView
+    String host = uri.getHost();
+    if (host != null &&
+        (host.equals("adhdone.space") || host.equals("www.adhdone.space"))) {
+        loadUrl(uri.toString());
+        return;
+    }
+
+    try {
+        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        // For real app-links to other apps, send to default browser
+        if (isAppLink(uri)) {
+            intent.setPackage(getDefaultBrowserPackageName());
+        }
+        startActivity(intent);
+    } catch (Exception ex) {
+        if (ex instanceof ActivityNotFoundException) {
+            Toast.makeText(this, R.string.app_not_installed, Toast.LENGTH_LONG).show();
+            GNLog.getInstance().logError(TAG, getString(R.string.app_not_installed), ex, GNLog.TYPE_TOAST_ERROR);
+        } else {
+            GNLog.getInstance().logError(TAG, "openExternalBrowser: launchError - uri: " + uri, ex);
         }
     }
+}
+
 
     public void openAppBrowser(Uri uri) {
         if (uri == null) return;
