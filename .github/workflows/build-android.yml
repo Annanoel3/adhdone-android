@@ -1,9 +1,7 @@
-name: Build & Sign Android (Gradle signing)
+name: Android Build (signed)
 
 on:
   workflow_dispatch: {}
-  push:
-    branches: [ main ]
 
 jobs:
   build:
@@ -17,35 +15,24 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
-      - name: Locate Android build-tools
-        id: tools
-        run: |
-          set -e
-          echo "Installed build-tools:"
-          ls -1 "$ANDROID_HOME/build-tools" | sort -V
-          BT="$ANDROID_HOME/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
-          echo "Using: $BT"
-          echo "BUILD_TOOLS=$BT" >> $GITHUB_ENV
-
-      # Create the keystore EXACTLY as your Gradle file expects:
-      # - repo root: release.keystore
-      # - alias: release
-      # - passwords: password
-      # If Secrets are present, we reuse them; otherwise we create a fresh one.
-      - name: Prepare keystore at REPO ROOT (release.keystore)
+      # 1) Create (or restore) the keystore in the REPO ROOT as "release.keystore"
+      #    We set the env vars Gradle will use.
+      - name: Prepare keystore at repo root
+        id: ks
         shell: bash
         run: |
           set -e
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding existing keystore from secrets to repo root…"
+            echo "Decoding keystore from Secrets → release.keystore"
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
             echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
             echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"         >> $GITHUB_ENV
             echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"               >> $GITHUB_ENV
           else
-            echo "No keystore secrets found. Creating keystore that matches your Gradle config…"
+            echo "No Secrets found. Creating a fresh keystore (one-time)."
+            # Use known, consistent values so there is no mismatch.
             KS_PASS="password"
             KEY_PASS="password"
             ALIAS="release"
@@ -61,36 +48,45 @@ jobs:
             echo "KEY_PASSWORD=$KEY_PASS"     >> $GITHUB_ENV
             echo "KEY_ALIAS=$ALIAS"           >> $GITHUB_ENV
 
-            # Export base64 so you can optionally store it as a Secret later
+            # Export base64 so you can save it as KEYSTORE_BASE64 later if you want
             base64 release.keystore > my-release.keystore.base64
           fi
 
-      - name: Make Gradle wrapper executable
-        working-directory: android
-        run: chmod +x ./gradlew
+          echo "Keystore placed at: $(pwd)/release.keystore"
+          ls -l release.keystore
 
-      # Build a SIGNED release (your build.gradle points to ../../release.keystore)
-      - name: Build signed release APK (Gradle)
+          echo "Verifying keystore BEFORE build…"
+          keytool -list -v -keystore release.keystore -storepass "$KEYSTORE_PASSWORD" | sed -n 's/.*SHA256: //p' | head -n1
+
+      # 2) Build inside the android/ folder and pass the signing env vars to Gradle
+      - name: Build signed release with Gradle
         working-directory: android
         env:
           KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
           KEY_ALIAS: ${{ env.KEY_ALIAS }}
-        run: ./gradlew assembleRelease
+        run: |
+          set -e
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleRelease
 
-      - name: Print signing certificate (SHA-256)
+      # 3) Print the APK certificate SHA-256 (what you’ll put in assetlinks.json)
+      - name: Print SHA-256 of signed APK
         working-directory: android
         run: |
+          set -e
+          BT="$ANDROID_HOME/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
           APK="app/build/outputs/apk/release/app-release.apk"
           if [ ! -f "$APK" ]; then
-            echo "Signed APK not found at $APK. Listing outputs:"
+            echo "Signed APK not found at $APK"
             ls -R app/build/outputs/apk || true
             exit 1
           fi
-          echo "----- SHA-256 digest (copy this, then remove colons for JSON) -----"
-          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | sed -n 's/.*SHA-256 digest: //p'
+          echo "----- SHA-256 digest (copy; remove colons for JSON) -----"
+          "$BT/apksigner" verify --print-certs "$APK" | sed -n 's/.*SHA-256 digest: //p'
 
-      - name: Upload APK (and keystore base64 if newly created)
+      # 4) Upload the signed APK (and the base64 keystore if this was the first run)
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ADHDone-build-output
@@ -98,4 +94,3 @@ jobs:
             android/app/build/outputs/apk/release/app-release.apk
             my-release.keystore.base64
           if-no-files-found: ignore
-
