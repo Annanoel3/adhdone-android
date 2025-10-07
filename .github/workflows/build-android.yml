@@ -23,8 +23,8 @@ jobs:
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
             echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"         >> $GITHUB_ENV
-            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"               >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
           else
             KS_PASS="password"
             KEY_PASS="password"
@@ -35,11 +35,10 @@ jobs:
               -alias "$ALIAS" \
               -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
             echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=$KEY_PASS"     >> $GITHUB_ENV
-            echo "KEY_ALIAS=$ALIAS"           >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$KEY_PASS" >> $GITHUB_ENV
+            echo "KEY_ALIAS=$ALIAS" >> $GITHUB_ENV
             base64 release.keystore > my-release.keystore.base64
           fi
-
       - name: Build signed release (flavor: normal)
         working-directory: android
         env:
