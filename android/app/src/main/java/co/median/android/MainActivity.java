@@ -435,6 +435,28 @@ public class MainActivity extends AppCompatActivity implements Observer,
 
         this.mWebviewContainer.setupWebview(this, isRoot);
         setupWebviewTheme(appTheme);
+        // === OAuth-critical WebView settings (ADD THIS) ===
+        try {
+            // Get the concrete WebView (LeanWebView extends WebView)
+            LeanWebView realWebView = getLeanWebView();
+
+            // JS + Storage + popup support
+            realWebView.getSettings().setJavaScriptEnabled(true);
+            realWebView.getSettings().setDomStorageEnabled(true);
+            realWebView.getSettings().setSupportMultipleWindows(true);
+            realWebView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
+
+            // Cookies (incl. 3rd-party) so Google ↔ your app handoff keeps session
+            CookieManager cookieMgr = CookieManager.getInstance();
+            cookieMgr.setAcceptCookie(true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cookieMgr.setAcceptThirdPartyCookies(realWebView, true);
+            }
+        } catch (Exception ignore) {
+        // Safe-guard: if anything isn't ready yet, don't crash
+        }
+        // === end OAuth-critical settings ===
+    
 
         boolean isWebViewStateRestored = false;
         if (savedInstanceState != null) {
