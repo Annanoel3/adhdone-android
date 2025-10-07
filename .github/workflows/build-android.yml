@@ -6,7 +6,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,7 +49,6 @@ jobs:
         run: |
           set -e
           chmod +x ./gradlew
-          # Build the normalRelease variant explicitly since you have a "normal" flavor
           ./gradlew --no-daemon assembleNormalRelease
 
       - name: Print SHA-256 of signed APK
@@ -60,7 +58,7 @@ jobs:
           BT="$ANDROID_HOME/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
           APK="app/build/outputs/apk/normal/release/app-normal-release.apk"
           if [ ! -f "$APK" ]; then
-            echo "Signed APK not found at $APK. Listing outputs:" 
+            echo "Signed APK not found at $APK. Listing outputs:"
             ls -R app/build/outputs/apk || true
             exit 1
           fi
