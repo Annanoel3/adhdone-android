@@ -17,49 +17,31 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # 1) Create (or restore) the keystore in the REPO ROOT as "release.keystore"
-      #    We set the env vars Gradle will use.
       - name: Prepare keystore at repo root
-        id: ks
         shell: bash
         run: |
           set -e
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding keystore from Secrets → release.keystore"
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
             echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
             echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"         >> $GITHUB_ENV
             echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"               >> $GITHUB_ENV
           else
-            echo "No Secrets found. Creating a fresh keystore (one-time)."
-            # Use known, consistent values so there is no mismatch.
             KS_PASS="password"
             KEY_PASS="password"
             ALIAS="release"
-
-            keytool -genkeypair -v \
-              -keystore release.keystore \
+            keytool -genkeypair -v -keystore release.keystore \
               -storepass "$KS_PASS" -keypass "$KEY_PASS" \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -alias "$ALIAS" \
               -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
-
             echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
             echo "KEY_PASSWORD=$KEY_PASS"     >> $GITHUB_ENV
             echo "KEY_ALIAS=$ALIAS"           >> $GITHUB_ENV
-
-            # Export base64 so you can save it as KEYSTORE_BASE64 later if you want
             base64 release.keystore > my-release.keystore.base64
           fi
 
-          echo "Keystore placed at: $(pwd)/release.keystore"
-          ls -l release.keystore
-
-          echo "Verifying keystore BEFORE build…"
-          keytool -list -v -keystore release.keystore -storepass "$KEYSTORE_PASSWORD" | sed -n 's/.*SHA256: //p' | head -n1
-
-      # 2) Build inside the android/ folder and pass the signing env vars to Gradle
-      - name: Build signed release with Gradle
+      - name: Build signed release (flavor: normal)
         working-directory: android
         env:
           KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
@@ -68,29 +50,28 @@ jobs:
         run: |
           set -e
           chmod +x ./gradlew
-          ./gradlew --no-daemon assembleRelease
+          # Build the normalRelease variant explicitly since you have a "normal" flavor
+          ./gradlew --no-daemon assembleNormalRelease
 
-      # 3) Print the APK certificate SHA-256 (what you’ll put in assetlinks.json)
       - name: Print SHA-256 of signed APK
         working-directory: android
         run: |
           set -e
           BT="$ANDROID_HOME/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
-          APK="app/build/outputs/apk/release/app-release.apk"
+          APK="app/build/outputs/apk/normal/release/app-normal-release.apk"
           if [ ! -f "$APK" ]; then
-            echo "Signed APK not found at $APK"
+            echo "Signed APK not found at $APK. Listing outputs:" 
             ls -R app/build/outputs/apk || true
             exit 1
           fi
           echo "----- SHA-256 digest (copy; remove colons for JSON) -----"
           "$BT/apksigner" verify --print-certs "$APK" | sed -n 's/.*SHA-256 digest: //p'
 
-      # 4) Upload the signed APK (and the base64 keystore if this was the first run)
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ADHDone-build-output
           path: |
-            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/apk/normal/release/app-normal-release.apk
             my-release.keystore.base64
           if-no-files-found: ignore
