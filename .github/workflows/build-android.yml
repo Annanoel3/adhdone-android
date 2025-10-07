@@ -6,6 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,16 +17,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Create/restore keystore at REPO ROOT as release.keystore
+      # Matches your app/build.gradle config (alias=release, passwords=password)
       - name: Prepare keystore at repo root
         shell: bash
         run: |
           set -e
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding keystore from Secrets → release.keystore"
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
             echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"         >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"               >> $GITHUB_ENV
           else
+            echo "No Secrets found. Creating a keystore that matches Gradle."
             KS_PASS="password"
             KEY_PASS="password"
             ALIAS="release"
@@ -35,11 +40,14 @@ jobs:
               -alias "$ALIAS" \
               -dname "CN=ADHDone,O=ADHDone,L=NA,ST=NA,C=US"
             echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=$KEY_PASS" >> $GITHUB_ENV
-            echo "KEY_ALIAS=$ALIAS" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$KEY_PASS"     >> $GITHUB_ENV
+            echo "KEY_ALIAS=$ALIAS"           >> $GITHUB_ENV
             base64 release.keystore > my-release.keystore.base64
           fi
-      - name: Build signed release (flavor: normal)
+          echo "Keystore ready at: $(pwd)/release.keystore"
+          ls -l release.keystore
+
+      - name: Build normalRelease (signed by Gradle)
         working-directory: android
         env:
           KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
@@ -50,25 +58,35 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleNormalRelease
 
-      - name: Print SHA-256 of signed APK
+      - name: Locate APK, copy to fixed name
         working-directory: android
+        shell: bash
         run: |
           set -e
-          BT="$ANDROID_HOME/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
-          APK="app/build/outputs/apk/normal/release/app-normal-release.apk"
-          if [ ! -f "$APK" ]; then
-            echo "Signed APK not found at $APK. Listing outputs:"
+          APK=$(find app/build/outputs/apk -type f -name "*-release.apk" | head -n1 || true)
+          if [ -z "$APK" ]; then
+            echo "No release APK found. Outputs:"
             ls -R app/build/outputs/apk || true
             exit 1
           fi
-          echo "----- SHA-256 digest (copy; remove colons for JSON) -----"
-          "$BT/apksigner" verify --print-certs "$APK" | sed -n 's/.*SHA-256 digest: //p'
+          echo "Found APK at: $APK"
+          cp "$APK" signed-release.apk
+          ls -l signed-release.apk
+
+      - name: Print SHA-256 of signed APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -e
+          BT="$ANDROID_HOME/build-tools/$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
+          echo "----- SHA-256 digest (copy this; remove colons for JSON) -----"
+          "$BT/apksigner" verify --print-certs signed-release.apk | sed -n 's/.*SHA-256 digest: //p'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ADHDone-build-output
           path: |
-            android/app/build/outputs/apk/normal/release/app-normal-release.apk
+            android/signed-release.apk
             my-release.keystore.base64
           if-no-files-found: ignore
