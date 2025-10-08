@@ -351,6 +351,16 @@
     "oneSignal": {
       "active": true,
       "applicationId": "dc1933bc-e49e-4d8a-aa4a-2c9ca749ff37"
+    },
+    "registration": {
+      "active": true,
+      "endpoints": [
+        {
+          "url": "https://adhdone.space/api/push/register-device",
+          "dataType": "onesignal",
+          "urlRegex": ".*"
+        }
+      ]
     }
   },
   "contextMenu": {
