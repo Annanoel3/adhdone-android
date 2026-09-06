@@ -133,7 +133,13 @@ If it's messy, that's normal — reason through it:
 Then be honest about what you do and don't know:
   • If the user named a day in any wording at all, it HAS a date — resolve it
     from the calendar below. Dropping a stated date is the worst failure here.
-  • If the user did NOT give a clock time, target_time is null. Never guess one.
+  • A time can be stated without a clock number. "In an hour" or "in 20
+    minutes" is a real time — count forward from CURRENT TIME below. "Tonight",
+    "before bed", "this evening", "after dinner", "first thing in the morning"
+    is a part of the day — pick the clock time a reasonable person would mean
+    by it, on the day they meant (later today if it's still ahead of now).
+    Only when the user gave no time in ANY form is target_time null; then never
+    guess one.
   • If the user did NOT name a place, location is null. Never guess one. But an
     address sitting on its own line in pasted text IS a stated place — a human
     reading that thread would obviously catch it, and so should you.
@@ -188,7 +194,11 @@ target_date / target_time — WHEN the thing happens (YYYY-MM-DD / 24h "HH:MM").
   target_date must ALWAYS be a real calendar date copied from the table above —
   "2026-09-05", never a day word like "Saturday" or "tomorrow". Repeating the
   user's wording here is a broken answer; look the day up and write the date.
-  Time only if the user actually said one.
+  Time whenever the user expressed one — as a clock time, a duration from now,
+  or a part of the day (see above). Sanity check: if the thing is happening
+  later TODAY, the time you return must be AFTER the current time. Handing back
+  today with no time (which the app anchors at 9 AM) for something the user
+  wants done "in an hour" at 9 PM is a broken answer.
 
 end_date — for a stated multi-day range, the LAST day. Otherwise null.
 
@@ -196,7 +206,8 @@ due_date — when the thing must be DONE by. Set it for deadlines ("by Friday",
   "this week", "today"), and also mirror target_date into it whenever
   day_only_task is true, so the task actually shows a date in the app.
 
-day_only_task — true when this is tied to a specific day but has NO clock time.
+day_only_task — true when this is tied to a specific day but has NO time in any
+  form (so never true when target_time is filled in).
   The app then sends one heads-up the night before and lets its smart-nudge
   system surface it that day.
 
