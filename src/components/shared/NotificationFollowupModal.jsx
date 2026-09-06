@@ -51,13 +51,26 @@ export default function NotificationFollowupModal({ user, theme }) {
   }, []);
 
   const loadTaskById = useCallback(
-    async (taskId) => {
+    async (taskId, { onlyIfDue = false } = {}) => {
       if (!taskId) return;
       try {
         const tasks = await base44.entities.Task.filter({ id: taskId });
         if (tasks.length > 0 && tasks[0].status === "active") {
           const task = tasks[0];
           if (dismissedTaskIds.current.has(task.id)) return;
+          // "Did you do it?" only makes sense for a task that's actually due.
+          // A smart nudge can surface a task days or weeks ahead of its
+          // deadline — asking whether it's done yet is wrong in that case.
+          if (onlyIfDue && task.due_date) {
+            const now = new Date();
+            const endOfToday = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+              23, 59, 59, 999
+            );
+            if (new Date(task.due_date) > endOfToday) return;
+          }
           pendingTasksRef.current = [
             task,
             ...pendingTasksRef.current.filter((t) => t.id !== task.id),
@@ -137,7 +150,7 @@ export default function NotificationFollowupModal({ user, theme }) {
       const nudgeTime = new Date(user.last_smart_nudge_at).getTime();
       if (Date.now() - nudgeTime > 3 * 60 * 60 * 1000) return; // older than 3 hours
       localStorage.setItem(seenKey, 'true');
-      loadTaskById(user.last_smart_nudge_task_id);
+      loadTaskById(user.last_smart_nudge_task_id, { onlyIfDue: true });
     };
     const nudgeTimer = setTimeout(checkRecentNudge, 2000);
 
