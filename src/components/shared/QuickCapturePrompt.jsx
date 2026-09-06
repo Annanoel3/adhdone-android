@@ -28,15 +28,23 @@ export default function QuickCapturePrompt() {
   useEffect(() => {
     if (!ShareBridge?.setQuickCaptureEnabled) return;
     if (localStorage.getItem(SEEN_KEY)) return;
-    ShareBridge.isQuickCaptureEnabled?.()
-      .then((res) => {
-        if (res?.enabled) {
-          localStorage.setItem(SEEN_KEY, 'true');
-        } else {
-          setOpen(true);
-        }
-      })
-      .catch(() => setOpen(true));
+
+    // Hold off ~10s so this doesn't stack on top of the OS notification
+    // permission dialog that fires on first launch — back-to-back system
+    // prompts read as spam and get reflexively dismissed.
+    const timer = setTimeout(() => {
+      ShareBridge.isQuickCaptureEnabled?.()
+        .then((res) => {
+          if (res?.enabled) {
+            localStorage.setItem(SEEN_KEY, 'true');
+          } else {
+            setOpen(true);
+          }
+        })
+        .catch(() => setOpen(true));
+    }, 10000);
+
+    return () => clearTimeout(timer);
   }, [ShareBridge]);
 
   const handleEnable = async () => {

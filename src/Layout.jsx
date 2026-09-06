@@ -52,7 +52,6 @@ import {
 } from "@/components/ui/collapsible";
 import MiniPomodoroBar from "./components/shared/MiniPomodoroBar";
 import UniversalVoiceAssistant from "./components/shared/UniversalVoiceAssistant";
-import MicrophonePermissionCheck from "./components/shared/MicrophonePermissionCheck";
 import PokeNotification from "./components/shared/PokeNotification";
 import NotificationFollowupModal from "./components/shared/NotificationFollowupModal";
 import AppGuideModal from "./components/shared/AppGuideModal";
@@ -1023,7 +1022,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
 
           <MiniPomodoroBar theme={theme} />
           <UniversalVoiceAssistant theme={theme} currentPageName={currentPageName} />
-          <MicrophonePermissionCheck theme={theme} />
           <PokeNotification theme={theme} />
           <NotificationFollowupModal user={user} theme={theme} />
 
