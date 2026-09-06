@@ -107,19 +107,20 @@ export default function OneSignalInit({ user }) {
 
         if (externalId) {
           console.log('[OneSignal] ✅ Calling NotifyBridge.login() with:', externalId);
-          await NotifyBridge.requestPermission();
-          const loginResult = await NotifyBridge.login({ externalId: externalId });
-          // Native plugin returns the player ID synchronously — save it.
-          if (loginResult?.playerId) {
+          const sub = await NotifyBridge.addListener('pushSubscriptionChanged', (state) => {
+            if (state?.id && state?.token) savePlayerId(state.id);
+          });
+
+          const permission = await NotifyBridge.requestPermission();
+          if (permission && permission.granted === false) {
+            console.warn('[OneSignal] Notification permission not granted');
+          }
+
+          const loginResult = await NotifyBridge.login({ externalId });
+          if (loginResult?.subscribed === false) {
+            console.log('[OneSignal] Token not ready — waiting for pushSubscriptionChanged');
+          } else if (loginResult?.playerId) {
             await savePlayerId(loginResult.playerId);
-          } else {
-            // Fallback: fetch it explicitly if login didn't return it.
-            try {
-              const idResult = await NotifyBridge.getPlayerId?.();
-              if (idResult?.playerId) await savePlayerId(idResult.playerId);
-            } catch (e) {
-              console.warn('[OneSignal] Could not retrieve native player ID:', e);
-            }
           }
         } else {
           console.log('[OneSignal] Calling NotifyBridge.logout()');
