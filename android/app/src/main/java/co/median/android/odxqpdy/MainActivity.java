@@ -98,18 +98,37 @@ public class MainActivity extends BridgeActivity {
             }
         });
 
-        // Keep all navigation in-app (prevents Chrome from opening for auth)
+        // Keep http(s) navigation in-app (prevents Chrome from opening for auth),
+        // but hand app-scheme links (sms:, tel:, mailto:, geo:) to the OS. Returning
+        // false for these made the WebView try to load them itself, which fails
+        // silently — that's why "Send via Messages" appeared to do nothing.
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                return false;
+                return handleExternalScheme(request.getUrl().toString());
             }
 
             @Override
             @SuppressWarnings("deprecation")
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                return false;
+                return handleExternalScheme(url);
             }
         });
+    }
+
+    private boolean handleExternalScheme(String url) {
+        if (url == null) return false;
+        String lower = url.toLowerCase();
+        if (lower.startsWith("http://") || lower.startsWith("https://")) return false;
+
+        try {
+            android.content.Intent intent =
+                    new android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(url));
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "No app to handle URL: " + url, e);
+        }
+        return true;
     }
 }
