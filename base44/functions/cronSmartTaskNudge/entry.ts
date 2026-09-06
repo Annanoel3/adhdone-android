@@ -436,6 +436,7 @@ YOUR APPROACH:
   * DEADLINE tasks can be worked on ahead of time, so give them RUNWAY. How much runway depends on how much work the task actually is — judge that from the task itself: a one-step thing (pay a bill, send an email, book something online) needs 1-2 days; an errand or anything involving another person, an office, or paperwork needs 3-5 days; a genuinely big multi-step job (taxes, a report, applications, packing, cleaning out a room) deserves nudges starting a week or two out, framed around ONE small first step. Never let a big deadline task get its first nudge the day before.
   * "happens on [day]" tasks are tied to that specific day and CANNOT be done sooner — do not nudge in the days leading up (at most a heads-up the night before). Nudging early just makes the user feel behind on something they can't act on yet.
 - NOT EVERY TASK NEEDS A NUDGE TODAY: a low-priority task with no deadline can wait. Use judgment — you're the assistant, you decide what matters now.
+- NO EMPTY NOTIFICATIONS: every nudge must be about at least one specific task and name it in the body. Never send generic filler like "quick check on your tasks", "nothing urgent today", or an "energy boost" — a notification that doesn't tell the boss what to do is noise. If nothing genuinely needs surfacing today, return {"nudges": []}.
 - DON'T BE ANNOYING: fewer, well-timed, meaningful nudges. Not one per hour. Not one per task. If only low-priority stuff remains, ONE combined heads-up is better than a nudge per task.
 - For tasks ALREADY NUDGED: check-in style ("Have you done X yet?") — supportive, never shaming.
 - For URGENT tasks: surface them with direct urgency ("Hey, this one's urgent — you've got this 💪").
@@ -488,11 +489,10 @@ Return ONLY valid JSON:
 
     // Convert to schedule entries
     const nowMs = Date.now();
-    const fallbackTaskId = tasks.find(t => t.urgency === 'urgent')?.id || tasks[0]?.id || null;
 
     const entries = nudges.map((n: any) => {
       const task = n.task_index > 0 ? tasks[n.task_index - 1] : null;
-      const taskId = task?.id || fallbackTaskId;
+      const taskId = task?.id || null;
 
       // Every task this nudge's wording refers to — so the send-time guard can
       // suppress a combined message when ANY of the named tasks is already done.
@@ -510,7 +510,7 @@ Return ONLY valid JSON:
       sendAt = adjustForQuietHours(sendAt, quietStartMin, quietEndMin, timeZone);
 
       return {
-        task_id: taskId,
+        task_id: taskId || taskIds[0] || null,
         task_ids: taskIds,
         send_at: sendAt.toISOString(),
         title: fixTitleTimeOfDay(n.title || 'Task nudge', sendAt, timeZone),
@@ -520,7 +520,11 @@ Return ONLY valid JSON:
         sent: false,
         sent_at: null,
       };
-    }).filter((e: any) => new Date(e.send_at).getTime() > nowMs); // drop any that landed in the past
+    })
+      // A nudge that isn't tied to any real task is filler ("quick check on
+      // your tasks — nothing urgent!") — drop it rather than send noise.
+      .filter((e: any) => e.task_ids.length > 0)
+      .filter((e: any) => new Date(e.send_at).getTime() > nowMs); // drop any that landed in the past
 
     // Space nudges out so two never land at (or near) the same time. The LLM
     // sometimes gives several nudges the same delay_minutes, which arrives as a

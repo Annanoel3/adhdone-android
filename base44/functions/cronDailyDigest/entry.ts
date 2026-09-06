@@ -151,7 +151,11 @@ async function generateDigestMessage(tasks: any[], firstName: string): Promise<{
       messages: [
         {
           role: 'system',
-          content: `You are a supportive ADHD productivity companion with a warm, friendly tone — like a supportive friend, never a clinician. Generate a short (1-2 sentences, under 150 characters) morning digest notification body that summarizes the user's tasks for today. Be encouraging and non-shaming. Use the user's first name naturally. Return only the notification body text, nothing else.`
+          content: `You are a supportive ADHD productivity companion with a warm, friendly tone — like a supportive friend, never a clinician. Generate a short (1-2 sentences, under 180 characters) morning digest notification body that summarizes the user's tasks for today. Be encouraging and non-shaming. Use the user's first name naturally.
+
+CRITICAL: keep every concrete detail from each task title exactly as written — store names, places, people, items (e.g. "from Costco", "at Martin's house"). Never drop, merge, or paraphrase those away; they are the whole point of the reminder. Shorten your own words, never the task's details.
+
+Return only the notification body text, nothing else.`
         },
         {
           role: 'user',
