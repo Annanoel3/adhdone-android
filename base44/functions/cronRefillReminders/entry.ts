@@ -361,7 +361,14 @@ Deno.serve(async (req) => {
     // 3. Promote planned entries within the scheduling window
     const newIds: string[] = [];
     for (const entry of schedule) {
-      if (entry.scheduled) continue;
+      // Already booked with a real OneSignal notification. Do NOT trust
+      // entry.scheduled — that flag isn't in the Task schema, so it's stripped
+      // on save and always comes back undefined, which previously caused this
+      // pass to re-book the same 3 reminders on every single cron run
+      // (thousands of duplicate pushes). The notification_id IS persisted:
+      // planned entries carry a `planned_…` placeholder, booked ones carry the
+      // real OneSignal id, so that's the reliable signal.
+      if (entry.notification_id && !String(entry.notification_id).startsWith('planned_')) continue;
       const sendAtMs = new Date(entry.send_at).getTime();
       if (sendAtMs <= now.getTime()) continue;
       if (sendAtMs - now.getTime() > BIRTHDAY_WINDOW_MS) continue;
