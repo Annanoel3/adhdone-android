@@ -56,6 +56,7 @@ async function fetchReminderSchedule(title, scheduledDateISO, urgency, dayOnly, 
       dayOnly,
       classification,
       deadlineStyle,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
 
     const data = response.data || response;

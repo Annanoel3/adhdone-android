@@ -152,6 +152,7 @@ export async function scheduleTaskReminders(
     dayOnly: task.day_only_task,
     classification: task.classification,
     deadlineStyle: task.deadline_style,
+    timezone: tz,
   });
 
   const scheduled = new Date(task.next_reminder).getTime();

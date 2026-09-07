@@ -56,7 +56,11 @@ export default async function(req) {
     }
 
     const bodyText = await req.text();
-    const { title, scheduledDateISO, urgency, dayOnly, classification, deadlineStyle } = JSON.parse(bodyText);
+    const { title, scheduledDateISO, urgency, dayOnly, classification, deadlineStyle, timezone } = JSON.parse(bodyText);
+    // The server runs in UTC. Without the user's zone, a 2:21 PM Chicago task
+    // was described to the LLM as "7:21 PM", so its absolute clock-time
+    // reminders landed hours after the task instead of before it.
+    const tz = timezone || undefined;
     // "on Friday" (happens that day) vs "by Friday" (deadline — work can start
     // earlier). Only meaningful for day-only tasks, and they behave differently:
     // 'on' = night-before + day-of only, 'by' = lead-up reminders in advance.
@@ -74,8 +78,20 @@ export default async function(req) {
     // Determine if this is a same-day task (scheduled date is today).
     // We compute this ourselves rather than trusting the LLM, since the LLM
     // often misclassifies past-today scheduled times as "tomorrow."
-    const isSameDay = scheduled.toDateString() === now.toDateString();
-    const hoursRemainingToday = 23 - now.getHours();
+    // Everything below reasons in the USER's wall clock, not the server's.
+    const localParts = (d) => {
+      const p = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz, hourCycle: 'h23',
+        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit',
+      }).formatToParts(d);
+      const get = (t) => p.find((x) => x.type === t)?.value;
+      return { date: `${get('year')}-${get('month')}-${get('day')}`, hour: Number(get('hour')) };
+    };
+    const scheduledLocal = localParts(scheduled);
+    const nowLocal = localParts(now);
+
+    const isSameDay = scheduledLocal.date === nowLocal.date;
+    const hoursRemainingToday = 23 - nowLocal.hour;
 
     // ── Events: fixed ladder, no LLM ──────────────────────────────────────
     // Driven only by the real classification (set by the parser / calendar
@@ -121,14 +137,13 @@ export default async function(req) {
       return Response.json({ reminders });
     }
 
-    const scheduledStr = scheduled.toLocaleString('en-US', {
+    const humanTime = (d) => d.toLocaleString('en-US', {
+      timeZone: tz,
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
       hour: 'numeric', minute: '2-digit', hour12: true
     });
-    const nowStr = now.toLocaleString('en-US', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true
-    });
+    const scheduledStr = humanTime(scheduled);
+    const nowStr = humanTime(now);
 
     const prompt = `You are an ADHD productivity expert helping someone with ADHD manage their task reminders.
 
@@ -325,10 +340,15 @@ Examples:
         if (r.relative_minutes_before != null) {
           return new Date(scheduled.getTime() - r.relative_minutes_before * 60000);
         }
-        const d = new Date(scheduled);
-        d.setDate(d.getDate() - (r.days_before || 0));
-        d.setHours(r.hour ?? 9, r.minute ?? 0, 0, 0);
-        return d;
+        // Absolute hour/minute are the USER's wall clock — resolve them in the
+        // user's zone, otherwise a 7 PM reminder is compared as 7 PM UTC.
+        const dayISO = localParts(new Date(scheduled.getTime() - (r.days_before || 0) * 86400000)).date;
+        const hh = String(r.hour ?? 9).padStart(2, '0');
+        const mm = String(r.minute ?? 0).padStart(2, '0');
+        const naive = new Date(`${dayISO}T${hh}:${mm}:00Z`);
+        const offsetMs = new Date(naive.toLocaleString('en-US', { timeZone: tz }))
+          .getTime() - new Date(naive.toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
+        return new Date(naive.getTime() - offsetMs);
       };
 
       const before = reminders.length;
