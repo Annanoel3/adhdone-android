@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Pencil, Navigation } from 'lucide-react';
+import { MapPin, Pencil, Navigation, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import LocationSuggestions from "./LocationSuggestions";
@@ -85,6 +85,18 @@ export default function LocationField({ task, theme, onSave }) {
           }`}
         >
           <Pencil className="w-3 h-3" />
+        </button>
+      ) : null}
+      {task.location ? (
+        <button
+          type="button"
+          title="Remove location"
+          onClick={() => { setValue(''); save(''); }}
+          className={`cursor-pointer hover:opacity-80 transition-opacity p-1 rounded-full flex-shrink-0 ${
+            theme === 'dark' ? 'text-red-400 hover:bg-red-900' : 'text-red-500 hover:bg-red-100'
+          }`}
+        >
+          <X className="w-3 h-3" />
         </button>
       ) : (
         <button
