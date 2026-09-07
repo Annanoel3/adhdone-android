@@ -112,8 +112,7 @@ export default function Home() {
       setTimeout(() => setShowCelebration(false), 2200);
     }
 
-    const now = new Date();
-    const localISOString = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString();
+    const localISOString = new Date().toISOString();
     
     // Cancel all scheduled reminders in the BACKGROUND — never block the UI
     if (task.onesignal_notification_ids && task.onesignal_notification_ids.length > 0) {
