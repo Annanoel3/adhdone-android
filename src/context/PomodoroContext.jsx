@@ -14,7 +14,17 @@ function loadState() {
     // If timer was active, calculate elapsed time
     if (state.isActive && state.savedAt) {
       const elapsed = Math.floor((Date.now() - state.savedAt) / 1000);
-      state.timeLeft = Math.max(0, state.timeLeft - elapsed);
+      const remaining = state.timeLeft - elapsed;
+      if (remaining <= 0) {
+        // The session finished while the app was closed. Don't resurrect it as
+        // a running timer (which would auto-chain into break → work forever).
+        state.isActive = false;
+        state.mode = 'work';
+        state.timeLeft = (state.workDuration ?? 25) * 60;
+        state.sessionCount = 0;
+      } else {
+        state.timeLeft = remaining;
+      }
     }
     return state;
   } catch {
