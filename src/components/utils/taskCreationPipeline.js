@@ -431,7 +431,18 @@ Return JSON:
       const [year, month, day] = parsed.target_date.split('-').map(n => parseInt(n, 10));
       const [hours, minutes] = parsed.target_time.split(':').map(n => parseInt(n, 10));
       const targetDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
-      nextReminder = targetDate <= new Date(now.getTime() + 2 * 60 * 1000) ? null : targetDate;
+      // "in 1 minute" / "in a couple minutes" lands inside the 2-minute
+      // scheduling floor. Nulling it here threw the user's time away entirely —
+      // the task saved with no date at all. Nudge it just past the floor
+      // instead, and only discard a time that's genuinely well in the past.
+      const floor = new Date(now.getTime() + 2 * 60 * 1000 + 5000);
+      if (targetDate > floor) {
+        nextReminder = targetDate;
+      } else if (targetDate.getTime() > now.getTime() - 30 * 60 * 1000) {
+        nextReminder = floor;
+      } else {
+        nextReminder = null;
+      }
       actualReminderInterval = 'once';
 
       const oneDayFromNow = new Date(now.getTime() + (24 * 60 * 60 * 1000));
