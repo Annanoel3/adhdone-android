@@ -330,6 +330,19 @@ async function generateDailySchedule(
   const minsLeftToday = Math.max(0, (quietStartMin > localMin ? quietStartMin : 24 * 60) - localMin);
   const hoursLeftStr = minsLeftToday < 60 ? `${minsLeftToday} minutes` : `${Math.round(minsLeftToday / 60 * 10) / 10} hours`;
 
+  // Hard filter, not a prompt instruction: a day-tied task ("do X on Nov 1")
+  // cannot be acted on early, so it must never reach the LLM until the night
+  // before. The prompt said as much and the model still nudged a form that
+  // wasn't due for two months — so this is enforced in code now.
+  const nudgeable = tasks.filter((t) => {
+    if (!t.due_date || !t.day_only_task) return true;
+    if (t.deadline_style === 'by') return true; // deadlines get runway
+    const days = daysUntil(t.due_date, now, timeZone);
+    return !(Number.isFinite(days) && days > 1);
+  });
+  if (nudgeable.length === 0) return [];
+  tasks = nudgeable;
+
   const taskList = tasks.map((t, i) => {
     let dueInfo = 'no due date';
     if (t.due_date) {
