@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Pencil, Navigation } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import LocationSuggestions from "./LocationSuggestions";
 
 // Where this task/event actually happens. Editable pill — the AI never guesses
 // a location, so this is the only way a user can add one after capture (and the
@@ -35,6 +36,7 @@ export default function LocationField({ task, theme, onSave }) {
           onKeyDown={(e) => { if (e.key === 'Enter') save(value); }}
           autoFocus
         />
+        <LocationSuggestions query={value} theme={theme} onPick={(s) => save(s)} />
         <div className="flex gap-2">
           <Button type="button" onClick={() => save(value)} className="flex-1 bg-teal-600 hover:bg-teal-700 text-white">
             Save Location
