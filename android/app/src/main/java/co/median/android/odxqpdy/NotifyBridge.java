@@ -184,6 +184,40 @@ public class NotifyBridge extends Plugin {
         }
     }
 
+    /**
+     * Open an external app-scheme URL (sms:, tel:, mailto:, geo:) through the OS.
+     *
+     * The web app previously relied on clicking a hidden <a href="sms:..."> and
+     * letting the WebView hand the scheme off. Android does not reliably route
+     * script-initiated navigations to non-http schemes, so the click silently
+     * did nothing on device. Firing the intent from native always works.
+     */
+    @PluginMethod
+    public void openExternal(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || url.isEmpty()) {
+            call.reject("url is required");
+            return;
+        }
+        try {
+            android.content.Intent intent = new android.content.Intent(
+                    android.content.Intent.ACTION_SENDTO, android.net.Uri.parse(url));
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                getActivity().startActivity(intent);
+            } catch (Exception noSendTo) {
+                android.content.Intent view = new android.content.Intent(
+                        android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
+                view.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                getActivity().startActivity(view);
+            }
+            call.resolve();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to open external URL: " + url, e);
+            call.reject("No app available to handle " + url);
+        }
+    }
+
     private String getPlayerId() {
         String id = OneSignal.getUser().getOnesignalId();
         if (id == null || id.isEmpty()) {
