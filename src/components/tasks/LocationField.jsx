@@ -12,20 +12,44 @@ import LocationSuggestions from "./LocationSuggestions";
 export default function LocationField({ task, theme, onSave }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(task.location || '');
+  // Local copy so add/remove shows instantly, before the parent's save round-trips.
+  const [loc, setLoc] = useState(task.location || '');
+  const wrapRef = React.useRef(null);
 
-  useEffect(() => { setValue(task.location || ''); }, [task.id, task.location]);
+  useEffect(() => {
+    setValue(task.location || '');
+    setLoc(task.location || '');
+  }, [task.id, task.location]);
+
+  useEffect(() => {
+    if (editing) {
+      setTimeout(() => wrapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    }
+  }, [editing]);
 
   const save = (v) => {
-    onSave(v.trim() ? v.trim() : null);
+    const next = v.trim();
+    setLoc(next);
+    setValue(next);
+    onSave(next ? next : null);
     setEditing(false);
   };
 
   // Opens the device's default map app on mobile, Google Maps on the web.
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.location || '')}`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc || '')}`;
+  const openMaps = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
+      window.open(mapsUrl, '_system');
+    } else {
+      window.open(mapsUrl, '_blank', 'noopener');
+    }
+  };
 
   if (editing) {
     return (
-      <div className={`w-full space-y-2 p-3 rounded-xl border ${
+      <div ref={wrapRef} className={`w-full space-y-2 p-3 rounded-xl border ${
         theme === 'dark' ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-200'
       }`}>
         <label className={`text-sm font-medium block ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>Location:</label>
@@ -45,10 +69,10 @@ export default function LocationField({ task, theme, onSave }) {
             Cancel
           </Button>
         </div>
-        {task.location && (
+        {loc && (
           <button
             type="button"
-            onClick={() => { setValue(''); save(''); }}
+            onClick={() => save('')}
             className="w-full text-center px-3 py-2 text-sm hover:bg-red-50 rounded text-red-600 font-medium"
           >
             Remove location
@@ -59,23 +83,22 @@ export default function LocationField({ task, theme, onSave }) {
   }
 
   return (
-    <div className="flex items-center gap-1 max-w-full min-w-0">
-      {task.location && (
+    <div ref={wrapRef} className="flex items-center gap-1 max-w-full min-w-0">
+      {loc && (
         <a
           href={mapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          onClick={openMaps}
           title="Open in Maps"
           className={`cursor-pointer hover:opacity-80 transition-opacity px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 min-w-0 ${
             theme === 'dark' ? 'bg-teal-900 text-teal-300' : 'bg-teal-100 text-teal-700'
           }`}
         >
           <MapPin className="w-3 h-3 flex-shrink-0" />
-          <span className="truncate">{task.location}</span>
+          <span className="truncate">{loc}</span>
           <Navigation className="w-3 h-3 flex-shrink-0 opacity-60" />
         </a>
       )}
-      {task.location ? (
+      {loc ? (
         <button
           type="button"
           title="Edit location"
@@ -87,11 +110,11 @@ export default function LocationField({ task, theme, onSave }) {
           <Pencil className="w-3 h-3" />
         </button>
       ) : null}
-      {task.location ? (
+      {loc ? (
         <button
           type="button"
           title="Remove location"
-          onClick={() => { setValue(''); save(''); }}
+          onClick={() => save('')}
           className={`cursor-pointer hover:opacity-80 transition-opacity p-1 rounded-full flex-shrink-0 ${
             theme === 'dark' ? 'text-red-400 hover:bg-red-900' : 'text-red-500 hover:bg-red-100'
           }`}
