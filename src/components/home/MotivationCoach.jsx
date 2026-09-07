@@ -4,6 +4,7 @@ import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
+import { isCompletedToday } from "../utils/todayTasks";
 
 export default function MotivationCoach({ theme }) {
   const [message, setMessage] = useState("");
@@ -34,12 +35,8 @@ export default function MotivationCoach({ theme }) {
       const today = new Date().toISOString().split('T')[0];
       
       // Get TODAY's completed tasks only
-      const allTasks = await base44.entities.Task.list();
-      const completedToday = allTasks.filter(t => {
-        if (t.status !== 'completed' || !t.completed_at) return false;
-        const completedDate = new Date(t.completed_at).toISOString().split('T')[0];
-        return completedDate === today;
-      });
+      const allTasks = await base44.entities.Task.list('-updated_date', 500);
+      const completedToday = allTasks.filter(isCompletedToday);
       
       const activeTasks = allTasks.filter(t => t.status === 'active' && !t.parent_task_id);
       

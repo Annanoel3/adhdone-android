@@ -51,6 +51,16 @@ export const isTodayTask = (task, todayStr = getLocalDateString()) => {
   return true;
 };
 
+// A real task (not a subtask, not a birthday) that was completed on the user's
+// LOCAL calendar day. Always compare local dates — comparing the UTC date makes
+// evening completions vanish from "today" once UTC rolls past midnight.
+export const isCompletedToday = (task, todayStr = getLocalDateString()) => {
+  if (task.status !== 'completed' || task.parent_task_id || task.birthday_person) return false;
+  const when = task.completed_at || task.updated_date;
+  if (!when) return false;
+  return getLocalDateString(new Date(when)) === todayStr;
+};
+
 // effective start date strictly in the future
 export const isUpcomingTask = (task, todayStr = getLocalDateString()) => {
   const start = getTaskDueLocalDate(task);

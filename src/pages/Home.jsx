@@ -13,7 +13,7 @@ import MotivationCoach from "../components/home/MotivationCoach";
 import TaskDetailsModal from "../components/tasks/TaskDetailsModal";
 import MomentumCelebration from "../components/shared/MomentumCelebration";
 import TaskCompletionCelebration from "../components/tasks/TaskCompletionCelebration";
-import { isTodayTask } from "../components/utils/todayTasks";
+import { isTodayTask, isCompletedToday } from "../components/utils/todayTasks";
 import { ensureBirthdayReminders } from "../components/utils/birthdayScheduler";
 
 export default function Home() {
@@ -184,12 +184,7 @@ export default function Home() {
   };
 
   // FIXED: Filter out subtasks from today's completed count
-  const todayCompleted = tasks.filter(t => {
-    if (t.status !== 'completed' || !t.completed_at || t.parent_task_id || t.birthday_person) return false;
-    const today = getLocalDateString(new Date());
-    const completedDate = getLocalDateString(new Date(t.completed_at));
-    return completedDate === today;
-  });
+  const todayCompleted = tasks.filter(isCompletedToday);
 
   // "Today" count = things you realistically need to DO today. Excludes:
   // subtasks, birthdays, events (you attend those, not "do" them), and

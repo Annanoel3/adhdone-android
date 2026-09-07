@@ -19,7 +19,7 @@ import { Task } from "@/entities/Task"; // Keep Task import as it might be used 
 import { DailySummary } from "@/entities/DailySummary";
 import { EnergyLog } from "@/entities/EnergyLog";
 import { base44 } from "@/api/base44Client";
-import { isTodayTask, isUpcomingTask } from "../utils/todayTasks";
+import { isTodayTask, isUpcomingTask, isCompletedToday } from "../utils/todayTasks";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
@@ -44,13 +44,7 @@ export default function EndOfDayReview({ isOpen, onClose, theme }) {
     const allTasks = await base44.entities.Task.list('-updated_date', 500);
 
     // Completed today = any task completed today (regardless of when it was created)
-    const completed = allTasks.filter(t => {
-      if (t.status !== 'completed' || t.parent_task_id) return false;
-      const dateToCheck = t.completed_at
-        ? new Date(t.completed_at).toISOString().split('T')[0]
-        : new Date(t.updated_date).toISOString().split('T')[0];
-      return dateToCheck === today;
-    });
+    const completed = allTasks.filter(t => isCompletedToday(t, today));
 
     // Remaining = active parent tasks that are due today (or have no due date).
     // Birthdays are tracked separately and excluded from task counts.

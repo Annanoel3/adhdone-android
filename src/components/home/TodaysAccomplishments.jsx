@@ -4,15 +4,10 @@ import { CheckCircle2, Trophy, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { isCompletedToday } from "../utils/todayTasks";
 
 export default function TodaysAccomplishments({ tasks, theme, onUncomplete }) {
-  const today = new Date().toISOString().split('T')[0];
-  
-  const completedToday = tasks.filter(t => {
-    if (t.status !== 'completed' || !t.completed_at) return false;
-    const completedDate = new Date(t.completed_at).toISOString().split('T')[0];
-    return completedDate === today;
-  });
+  const completedToday = tasks.filter(isCompletedToday);
 
   const specialMode = localStorage.getItem('special_mode') || 'normal';
 
