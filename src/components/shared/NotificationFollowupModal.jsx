@@ -130,11 +130,11 @@ export default function NotificationFollowupModal({ user, theme }) {
       }
     };
 
-    // Check sessionStorage for pending followup from notification click
-    const pendingTaskId = sessionStorage.getItem("pending_task_followup");
-    if (pendingTaskId) {
+    // A notification tap now lands on the TaskNotification page, which asks
+    // "Did you do it?" itself — so this modal must never also pop up there.
+    if (window.location.pathname.toLowerCase().includes('tasknotification')) {
       sessionStorage.removeItem("pending_task_followup");
-      loadTaskById(pendingTaskId);
+      return;
     }
 
     // Always check for overdue tasks (delayed to let page settle)
@@ -154,17 +154,7 @@ export default function NotificationFollowupModal({ user, theme }) {
     };
     const nudgeTimer = setTimeout(checkRecentNudge, 2000);
 
-    // Listen for notification click events
-    const handleFollowupEvent = (event) => {
-      const taskId = event.detail?.taskId;
-      if (taskId) {
-        loadTaskById(taskId);
-      }
-    };
-    window.addEventListener("show-task-followup", handleFollowupEvent);
-
     return () => {
-      window.removeEventListener("show-task-followup", handleFollowupEvent);
       clearTimeout(timer);
       clearTimeout(nudgeTimer);
     };

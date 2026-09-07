@@ -36,15 +36,13 @@ function handleNotificationData(data, navigate) {
   const taskId = data.taskId || data.task_id;
   if (!taskId) return;
 
+  const screen = data.screen || '/TaskNotification';
   if (navigate) {
-    const screen = data.screen || '/TaskNotification';
     navigate(`${screen}?taskId=${taskId}`);
-    return;
+  } else {
+    // No router available — hard-navigate to the same task screen.
+    window.location.href = `${screen}?taskId=${taskId}`;
   }
-
-  // No router available — fall back to the modal-based follow-up
-  sessionStorage.setItem('pending_task_followup', taskId);
-  window.dispatchEvent(new CustomEvent('show-task-followup', { detail: { taskId } }));
 }
 
 export default function OneSignalInit({ user }) {
