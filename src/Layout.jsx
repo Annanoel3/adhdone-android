@@ -228,15 +228,21 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
     }
   }, [user, authCheckComplete]);
 
-  // Android back button handler
+  // Android back button handler — registered ONCE. The current path lives in a
+  // ref so the listener never has a stale pathname (re-registering per route
+  // leaked listeners, and a stale "on Home" one would exit the app from Tasks).
+  const pathnameRef = React.useRef(location.pathname);
+  useEffect(() => { pathnameRef.current = location.pathname; }, [location.pathname]);
+
   useEffect(() => {
     // Check if Capacitor is available (only in native builds)
     if (typeof window !== 'undefined' && window.Capacitor) {
+      let handle = null;
       const setupBackButton = async () => {
         try {
           const { App } = window.Capacitor.Plugins;
           
-          App.addListener('backButton', ({ canGoBack }) => {
+          handle = await App.addListener('backButton', ({ canGoBack }) => {
             // A popup/dialog/sheet is open — back should close it, never exit
             // the app. Dialogs don't push history entries, so without this the
             // back press on Home while a modal is open would quit the app.
@@ -248,24 +254,21 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
               openOverlay.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
               return;
             }
-            if (location.pathname === createPageUrl('Home') || !canGoBack) {
+            if (pathnameRef.current === createPageUrl('Home') || !canGoBack) {
               App.exitApp();
             } else {
               navigate(-1);
             }
           });
-
-          return () => {
-            App.removeAllListeners();
-          };
         } catch (error) {
           console.log('Capacitor App plugin not available:', error);
         }
       };
 
       setupBackButton();
+      return () => { handle?.remove?.(); };
     }
-  }, [location.pathname, navigate]);
+  }, [navigate]);
 
   const saveThemeToProfile = async (newTheme, newSpecialMode, newSeasonalUnlocked) => {
     localStorage.setItem('adhd_theme', newTheme);
