@@ -20,38 +20,51 @@ const getPlugins = () => {
 // notification permission, so it can't be silently on by default — we ask once,
 // then never again (the toggle lives in Settings either way).
 export default function QuickCapturePrompt() {
-  const { ShareBridge, NotifyBridge } = getPlugins();
+  const { NotifyBridge } = getPlugins();
   const [open, setOpen] = useState(false);
   const [declined, setDeclined] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!ShareBridge?.setQuickCaptureEnabled) return;
     if (localStorage.getItem(SEEN_KEY)) return;
 
-    // Hold off ~10s so this doesn't stack on top of the OS notification
-    // permission dialog that fires on first launch — back-to-back system
-    // prompts read as spam and get reflexively dismissed.
-    const timer = setTimeout(() => {
-      ShareBridge.isQuickCaptureEnabled?.()
-        .then((res) => {
-          if (res?.enabled) {
-            localStorage.setItem(SEEN_KEY, 'true');
-          } else {
-            setOpen(true);
-          }
-        })
-        .catch(() => setOpen(true));
-    }, 10000);
+    let cancelled = false;
+    let showTimer = null;
 
-    return () => clearTimeout(timer);
-  }, [ShareBridge]);
+    // The native bridge usually isn't attached yet on first mount. Previously
+    // the effect just bailed out and only re-ran on some incidental re-render,
+    // so the prompt could land minutes late. Poll briefly for the bridge, then
+    // hold off ~10s so this doesn't stack on top of the OS notification
+    // permission dialog that fires on first launch.
+    const start = Date.now();
+    const poll = setInterval(() => {
+      const { ShareBridge } = getPlugins();
+      if (ShareBridge?.setQuickCaptureEnabled) {
+        clearInterval(poll);
+        showTimer = setTimeout(() => {
+          if (cancelled) return;
+          ShareBridge.isQuickCaptureEnabled?.()
+            .then((res) => {
+              if (cancelled) return;
+              if (res?.enabled) localStorage.setItem(SEEN_KEY, 'true');
+              else setOpen(true);
+            })
+            .catch(() => { if (!cancelled) setOpen(true); });
+        }, 10000);
+      } else if (Date.now() - start > 15000) {
+        // Not a native build (or no bridge) — nothing to offer.
+        clearInterval(poll);
+      }
+    }, 500);
+
+    return () => { cancelled = true; clearInterval(poll); if (showTimer) clearTimeout(showTimer); };
+  }, []);
 
   const handleEnable = async () => {
     setBusy(true);
     try {
       if (NotifyBridge?.requestPermission) await NotifyBridge.requestPermission();
-      await ShareBridge.setQuickCaptureEnabled({ enabled: true });
+      await getPlugins().ShareBridge?.setQuickCaptureEnabled({ enabled: true });
     } catch (e) {
       // Nothing to recover here — the Settings toggle shows the real error.
     } finally {
