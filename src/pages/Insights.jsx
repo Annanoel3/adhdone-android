@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { base44 } from "@/api/base44Client";
 import { 
   TrendingUp, 
-  Battery, 
   Clock, 
   Target,
   Calendar,
@@ -31,36 +30,10 @@ export default function Insights() {
   const loadInsights = async () => {
     setIsLoading(true);
 
-    // Get last 30 days of data
-    const energyLogs = await base44.entities.EnergyLog.list('-logged_at', 100);
     // Pull completed tasks separately so the "Tasks Done" total isn't silently
     // capped by a recent-500 window that's mostly still-active tasks.
     const tasks = await base44.entities.Task.list('-created_date', 500);
     const allCompleted = await base44.entities.Task.filter({ status: 'completed' }, '-completed_at', 2000);
-    const summaries = await base44.entities.DailySummary.list('-date', 30);
-
-    // Analyze energy patterns
-    const morningEnergy = energyLogs.filter(log => {
-      const hour = new Date(log.logged_at).getHours();
-      return hour >= 6 && hour < 12;
-    });
-
-    const afternoonEnergy = energyLogs.filter(log => {
-      const hour = new Date(log.logged_at).getHours();
-      return hour >= 12 && hour < 18;
-    });
-
-    const eveningEnergy = energyLogs.filter(log => {
-      const hour = new Date(log.logged_at).getHours();
-      return hour >= 18 || hour < 6;
-    });
-
-    const getAverageEnergy = (logs) => {
-      if (logs.length === 0) return 'medium';
-      const scores = logs.map(l => l.energy_level === 'high' ? 3 : l.energy_level === 'medium' ? 2 : 1);
-      const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-      return avg >= 2.5 ? 'high' : avg >= 1.5 ? 'medium' : 'low';
-    };
 
     // Analyze task completion by time
     // Only genuine, still-existing completions count: no subtasks (they'd inflate
@@ -124,9 +97,26 @@ export default function Insights() {
           (dayTotals[a] / dayDates[a].size) >= (dayTotals[b] / dayDates[b].size) ? a : b)]
       : 'Not enough data';
 
+    // Current streak — counted from real completion days, not the DailySummary
+    // record (which only exists for days the app happened to write one). A day
+    // counts if at least one task was finished; the streak is still alive if the
+    // most recent completion day is today or yesterday.
+    const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const today = new Date();
+    let currentStreak = 0;
+    const cursor = new Date(today);
+    if (!completionsByDay[dayKey(cursor)]) cursor.setDate(cursor.getDate() - 1);
+    while (completionsByDay[dayKey(cursor)]) {
+      currentStreak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
     // Due date push tracking — how many times the user postponed deadlines.
-    // Subtasks and birthdays aren't things you "postpone" — exclude them.
-    const tasksWithPushes = tasks.filter(t => (t.due_date_pushes || 0) > 0 && !t.parent_task_id && !t.birthday_person);
+    // Completed tasks are merged in: a task you finally finished after pushing
+    // it four times still counts, and it may be older than the recent-500 window.
+    const byId = {};
+    [...tasks, ...allCompleted].forEach(t => { byId[t.id] = t; });
+    const tasksWithPushes = Object.values(byId).filter(t => (t.due_date_pushes || 0) > 0 && !t.parent_task_id && !t.birthday_person);
     const totalPushes = tasksWithPushes.reduce((sum, t) => sum + (t.due_date_pushes || 0), 0);
     const mostPushed = tasksWithPushes
       .sort((a, b) => (b.due_date_pushes || 0) - (a.due_date_pushes || 0))
@@ -134,9 +124,6 @@ export default function Insights() {
       .map(t => ({ title: t.title, pushes: t.due_date_pushes, status: t.status }));
 
     setInsights({
-      morningEnergy: getAverageEnergy(morningEnergy),
-      afternoonEnergy: getAverageEnergy(afternoonEnergy),
-      eveningEnergy: getAverageEnergy(eveningEnergy),
       morningCompletions,
       afternoonCompletions,
       eveningCompletions,
@@ -145,7 +132,7 @@ export default function Insights() {
       activeDayCount: activeDays.length,
       mostProductiveDay,
       totalTasksCompleted: completedTasks.length,
-      currentStreak: summaries[0]?.streak_days || 0,
+      currentStreak,
       totalDueDatePushes: totalPushes,
       tasksPushed: tasksWithPushes.length,
       mostPushedTasks: mostPushed,
@@ -173,50 +160,6 @@ export default function Insights() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Energy Patterns */}
-        <Card className="border-none shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Battery className="w-5 h-5" />
-              Energy Patterns
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Morning (6 AM - 12 PM)</span>
-                <Badge className={
-                  insights.morningEnergy === 'high' ? 'bg-green-100 text-green-700' :
-                  insights.morningEnergy === 'medium' ? 'bg-amber-100 text-amber-700' :
-                  'bg-red-100 text-red-700'
-                }>
-                  {insights.morningEnergy}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Afternoon (12 PM - 6 PM)</span>
-                <Badge className={
-                  insights.afternoonEnergy === 'high' ? 'bg-green-100 text-green-700' :
-                  insights.afternoonEnergy === 'medium' ? 'bg-amber-100 text-amber-700' :
-                  'bg-red-100 text-red-700'
-                }>
-                  {insights.afternoonEnergy}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Evening (6 PM - 6 AM)</span>
-                <Badge className={
-                  insights.eveningEnergy === 'high' ? 'bg-green-100 text-green-700' :
-                  insights.eveningEnergy === 'medium' ? 'bg-amber-100 text-amber-700' :
-                  'bg-red-100 text-red-700'
-                }>
-                  {insights.eveningEnergy}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Task Completion Times */}
         <Card className="border-none shadow-lg">
           <CardHeader>
@@ -412,14 +355,6 @@ export default function Insights() {
                 Schedule your most important tasks during your <strong>{insights.bestTime.toLowerCase()}</strong> hours when you're most productive.
               </p>
             </div>
-            {insights.afternoonEnergy === 'low' && (
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-purple-600 mt-2 flex-shrink-0" />
-                <p className="text-gray-700">
-                  Your energy dips in the afternoon. Try scheduling lower-energy tasks or taking a short break during this time.
-                </p>
-              </div>
-            )}
             {insights.totalDueDatePushes >= 3 && (
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
