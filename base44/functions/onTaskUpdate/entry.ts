@@ -242,6 +242,51 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, cancelled: true, reason: 'task_completed_or_snoozed' });
     }
 
+    // Un-completing a task (completed → active): the completed branch above wipes
+    // EVERY scheduling field (recipient email, next_reminder, interval, schedule),
+    // so without this the task comes back permanently silent — no reminders ever
+    // again, even though its date is still in the future. Rebuild the event ladder
+    // for anything with a real date left on it.
+    if (data.status === 'active' && old_data?.status === 'completed') {
+      const when = data.event_time || data.due_date || data.next_reminder;
+      const whenMs = when ? new Date(when).getTime() : 0;
+      const now = Date.now();
+      if (whenMs > now) {
+        console.log('[onTaskUpdate] Task un-completed — rebuilding reminders');
+        const email = data.notification_recipient_email || user.email;
+        const t = data.title.length > 40 ? data.title.slice(0, 37) + '...' : data.title;
+        const candidates = [
+          { at: whenMs - 24 * 60 * 60 * 1000, label: 'night before', title: `🎉 ${t}`, body: `Heads up! Your "${t}" is tomorrow. Don't forget to prep! ✨` },
+          { at: whenMs - 60 * 60 * 1000, label: '1 hour before', title: `⏰ ${t}`, body: `Almost time! Your "${t}" is in about an hour. Time to head out! 🚗` },
+          { at: whenMs, label: 'at the time', title: `🔔 ${t}`, body: `It's time — "${t}". You've got this! 💪` },
+        ].filter((c) => c.at > now);
+
+        const newIds = [];
+        const newSchedule = [];
+        for (const c of candidates) {
+          const sendAtISO = new Date(c.at).toISOString();
+          const notificationId = await scheduleOneSignalNotification(email, c.title, c.body, sendAtISO, event.entity_id);
+          newSchedule.push({
+            notification_id: notificationId,
+            send_at: sendAtISO,
+            label: c.label,
+            notification_title: c.title,
+            notification_body: c.body,
+          });
+          if (notificationId) newIds.push(notificationId);
+        }
+
+        await base44.asServiceRole.entities.Task.update(event.entity_id, {
+          notification_recipient_email: email,
+          next_reminder: new Date(whenMs).toISOString(),
+          reminder_interval: data.reminder_interval || 'once',
+          reminder_schedule: newSchedule,
+          onesignal_notification_ids: newIds,
+        });
+        return Response.json({ success: true, restored: newIds.length });
+      }
+    }
+
     // Back Burner: a silenced task gets NO notifications. Cancel every live
     // OneSignal notification, but PRESERVE the task's config and its
     // reminder_schedule send_at times (with dead notification_ids nulled) so the
