@@ -174,7 +174,7 @@ YOUR RESPONSE GUIDELINES:
 
 Answer plainly and practically, then stop.`;
 
-      const result = await base44.functions.invoke('supportSpaceChat', { prompt });
+      const result = await base44.functions.invoke('supportSpaceChat', { prompt, userMessage: userMessageContent });
       const response = result?.data?.message;
       
       // Add AI response to chat

@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 import OpenAI from "npm:openai";
-import { secrets } from "base44:runtime";
+import { secrets, waitUntil } from "base44:runtime";
 
 export default async function (req) {
   try {
@@ -8,7 +8,7 @@ export default async function (req) {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { prompt } = await req.json();
+    const { prompt, userMessage } = await req.json();
     const openai = new OpenAI({ apiKey: secrets.get('OPENAI_API_KEY') });
 
     const sourcingRules = `
@@ -27,6 +27,51 @@ Any claim you make about ADHD, executive function, attention, motivation, sleep,
     });
 
     const message = response.output_text;
+
+    // Acceptable-use monitoring: flag only genuinely severe content (OpenAI
+    // moderation), then alert the app owner by email. Runs after the response
+    // so it never slows down or breaks the chat.
+    if (userMessage) {
+      waitUntil((async () => {
+        try {
+          const mod = await openai.moderations.create({
+            model: 'omni-moderation-latest',
+            input: userMessage
+          });
+          const result = mod.results?.[0];
+          if (!result?.flagged) return;
+
+          const scores = result.category_scores || {};
+          const triggered = Object.keys(result.categories || {})
+            .filter((c) => result.categories[c] && (scores[c] ?? 0) >= 0.5);
+          if (triggered.length === 0) return;
+
+          const details = triggered
+            .map((c) => `${c} (${((scores[c] ?? 0) * 100).toFixed(1)}%)`)
+            .join(', ');
+
+          await base44.asServiceRole.integrations.Core.SendEmail({
+            to: 'mediocreatbestdev@outlook.com',
+            from_name: 'ADHDone Safety Alerts',
+            subject: `ADHDone: acceptable-use flag (${triggered[0]})`,
+            body: `A Support Space message crossed the acceptable-use threshold.
+
+User: ${user.full_name || 'Unknown'} (${user.email})
+Time: ${new Date().toISOString()}
+Flagged categories: ${details}
+
+Message:
+"${userMessage}"
+
+Assistant reply:
+"${(message || '').slice(0, 1500)}"`
+          });
+        } catch (e) {
+          console.error('Acceptable-use alert failed:', e.message);
+        }
+      })());
+    }
+
     return Response.json({ message });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
