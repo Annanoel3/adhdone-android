@@ -3,6 +3,7 @@ import { MapPin, Pencil, Navigation, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import LocationSuggestions from "./LocationSuggestions";
+import { openMapsApp } from "@/components/utils/openMapsApp";
 
 // Where this task/event actually happens. Editable pill — the AI never guesses
 // a location, so this is the only way a user can add one after capture (and the
@@ -35,16 +36,10 @@ export default function LocationField({ task, theme, onSave }) {
     setEditing(false);
   };
 
-  // Opens the device's default map app on mobile, Google Maps on the web.
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc || '')}`;
   const openMaps = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
-      window.open(mapsUrl, '_system');
-    } else {
-      window.open(mapsUrl, '_blank', 'noopener');
-    }
+    openMapsApp(loc);
   };
 
   if (editing) {
@@ -85,8 +80,8 @@ export default function LocationField({ task, theme, onSave }) {
   return (
     <div ref={wrapRef} className="flex items-center gap-1 max-w-full min-w-0">
       {loc && (
-        <a
-          href={mapsUrl}
+        <button
+          type="button"
           onClick={openMaps}
           title="Open in Maps"
           className={`cursor-pointer hover:opacity-80 transition-opacity px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 min-w-0 ${
@@ -96,7 +91,7 @@ export default function LocationField({ task, theme, onSave }) {
           <MapPin className="w-3 h-3 flex-shrink-0" />
           <span className="truncate">{loc}</span>
           <Navigation className="w-3 h-3 flex-shrink-0 opacity-60" />
-        </a>
+        </button>
       )}
       {loc ? (
         <button
