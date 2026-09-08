@@ -99,20 +99,17 @@ export default function AddTask() {
   const handleVoiceTranscription = async (audioBlob) => {
     setIsTranscribing(true);
     try {
-      const audioBase64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(audioBlob);
-      });
+      const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { type: audioBlob.type || 'audio/webm' });
+      const uploadResult = await base44.integrations.Core.UploadFile({ file: audioFile });
+      if (!uploadResult?.file_url) throw new Error('Failed to upload audio');
 
       const response = await base44.functions.invoke('transcribeAudio', {
-        audio_base64: audioBase64,
-        filename: `voice-${Date.now()}.webm`
+        file_url: uploadResult.file_url
       });
 
-      if (!response?.data?.text) throw new Error('Failed to transcribe audio');
-      submitCapture(response.data.text.trim());
+      const text = response?.data?.transcription || response?.data?.text;
+      if (!text) throw new Error('Failed to transcribe audio');
+      submitCapture(text.trim());
     } catch (error) {
       console.error("Voice processing error:", error);
       alert("Failed to process voice input. Please try again.");
