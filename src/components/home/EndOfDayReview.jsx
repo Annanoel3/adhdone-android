@@ -51,8 +51,16 @@ export default function EndOfDayReview({ isOpen, onClose, theme }) {
     // Future-dated tasks are "upcoming" and excluded from today's counts.
     const remaining = allTasks.filter(t => t.status === 'active' && !t.parent_task_id && !t.birthday_person && isTodayTask(t, today));
 
-    // Upcoming = active parent tasks with a due date in the future (birthdays excluded)
-    const upcoming = allTasks.filter(t => t.status === 'active' && !t.parent_task_id && !t.birthday_person && isUpcomingTask(t, today));
+    // Upcoming = active parent TASKS with a due date in the future. Events and
+    // birthdays are calendar items, not to-dos, so they never count here.
+    const upcoming = allTasks.filter(t =>
+      t.status === 'active' &&
+      !t.parent_task_id &&
+      !t.birthday_person &&
+      t.classification !== 'event' &&
+      t.classification !== 'birthday' &&
+      isUpcomingTask(t, today)
+    );
 
     // todayTasks for completion rate = completed today + today's active/snoozed parent tasks
     // Birthdays are tracked separately and excluded from task counts.
