@@ -413,7 +413,24 @@ Deno.serve(async (req) => {
         console.error(`[REFILL] Birthday schedule failed for ${task.id}:`, e);
       }
     }
-    if (newIds.length) ids = [...ids, ...newIds];
+    // Reconcile, never append. The id list used to grow by up to 3 every time a
+    // promotion ran, so ids the schedule no longer references stayed "tracked"
+    // forever — 150+ live OneSignal notifications for ONE birthday, all firing
+    // on the same day, with nothing left pointing at them to cancel them.
+    // The schedule is the single source of truth: anything booked that the
+    // schedule doesn't reference is an orphan and gets cancelled here.
+    {
+      const liveIds = schedule
+        .map((e: any) => e.notification_id)
+        .filter((id: any) => id && !String(id).startsWith('planned_'));
+      const orphans = ids.filter((id: string) => !liveIds.includes(id));
+      if (orphans.length) {
+        await cancelOneSignalIds(orphans);
+        console.log(`🧹 [REFILL] Cancelled ${orphans.length} orphaned birthday notification(s) for "${task.title}"`);
+        dirty = true;
+      }
+      if (orphans.length || newIds.length) ids = liveIds;
+    }
 
     if (dirty) {
       await base44.asServiceRole.entities.Task.update(task.id, {
@@ -541,9 +558,20 @@ Deno.serve(async (req) => {
     }
 
     if (dirty) {
+      // Same reconcile-not-append rule as the birthday pass: the schedule owns
+      // the id list, and anything booked that it no longer references is
+      // cancelled instead of left running untracked.
+      const liveIds = schedule
+        .map((e: any) => e.notification_id)
+        .filter((id: any) => id && !String(id).startsWith('planned_'));
+      const orphans = ids.filter((id: string) => !liveIds.includes(id));
+      if (orphans.length) {
+        await cancelOneSignalIds(orphans);
+        console.log(`🧹 [REFILL] Cancelled ${orphans.length} orphaned event notification(s) for "${task.title}"`);
+      }
       await base44.asServiceRole.entities.Task.update(task.id, {
         reminder_schedule: schedule,
-        onesignal_notification_ids: [...ids, ...newIds],
+        onesignal_notification_ids: liveIds,
       });
     }
   }
