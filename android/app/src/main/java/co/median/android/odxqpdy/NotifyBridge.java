@@ -200,8 +200,12 @@ public class NotifyBridge extends Plugin {
             return;
         }
         try {
+            // Map/web URLs are VIEW intents; messaging schemes are SENDTO.
+            boolean isView = url.startsWith("geo:") || url.startsWith("http");
             android.content.Intent intent = new android.content.Intent(
-                    android.content.Intent.ACTION_SENDTO, android.net.Uri.parse(url));
+                    isView ? android.content.Intent.ACTION_VIEW
+                           : android.content.Intent.ACTION_SENDTO,
+                    android.net.Uri.parse(url));
             intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
             try {
                 getActivity().startActivity(intent);
