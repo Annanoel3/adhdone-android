@@ -23,7 +23,9 @@ export default function HomeZipPrompt({ user, theme }) {
 
   useEffect(() => {
     if (!user) return;
-    if (localStorage.getItem(SEEN_KEY) === 'true') return;
+    // Saved on the profile too, so a new device / cleared browser storage
+    // doesn't start asking all over again.
+    if (localStorage.getItem(SEEN_KEY) === 'true' || user.home_zip_prompt_seen) return;
     if (user.home_zipcode) {
       localStorage.setItem(SEEN_KEY, 'true');
       return;
@@ -35,6 +37,7 @@ export default function HomeZipPrompt({ user, theme }) {
   const dismiss = () => {
     localStorage.setItem(SEEN_KEY, 'true');
     setOpen(false);
+    base44.auth.updateMe({ home_zip_prompt_seen: true }).catch(() => {});
   };
 
   const handleSave = async () => {
