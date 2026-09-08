@@ -25,6 +25,12 @@ const fmtFrequency = (count, spanDays) => {
   return 'about once a month';
 };
 
+// A habit has to be something you actually come back to: at least 3 SEPARATE
+// days, spread over at least two weeks. Finishing the same one-off task a few
+// times in one afternoon (or a task recreated during testing) isn't a habit.
+const MIN_DAYS = 3;
+const MIN_SPAN_DAYS = 14;
+
 // Habits = things you've finished more than once. Duration comes only from
 // Sprints / Launchpad sessions, since that's the only time we actually know
 // how long something took.
@@ -42,8 +48,11 @@ export default function HabitPatterns({ theme }) {
       if (!t.completed_at || t.parent_task_id || t.birthday_person) return;
       const key = norm(t.title);
       if (!key) return;
-      const g = groups[key] || (groups[key] = { title: t.title, dates: [] });
-      g.dates.push(new Date(t.completed_at).getTime());
+      const g = groups[key] || (groups[key] = { title: t.title, days: new Set() });
+      // One per calendar day — repeated completions the same day are the same
+      // instance of the task, not a repeat of the habit.
+      const d = new Date(t.completed_at);
+      g.days.add(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime());
     });
 
     const durations = {};
@@ -54,14 +63,17 @@ export default function HabitPatterns({ theme }) {
     });
 
     const list = Object.entries(groups)
-      .filter(([, g]) => g.dates.length >= 2)
       .map(([key, g]) => {
-        const spanDays = (Math.max(...g.dates) - Math.min(...g.dates)) / 86400000;
+        const days = [...g.days];
+        return { key, title: g.title, days, spanDays: (Math.max(...days) - Math.min(...days)) / 86400000 };
+      })
+      .filter(g => g.days.length >= MIN_DAYS && g.spanDays >= MIN_SPAN_DAYS)
+      .map(({ key, title, days, spanDays }) => {
         const d = durations[key];
         return {
-          title: g.title,
-          count: g.dates.length,
-          frequency: fmtFrequency(g.dates.length, spanDays),
+          title,
+          count: days.length,
+          frequency: fmtFrequency(days.length, spanDays),
           avgDuration: d ? fmtDuration(d.reduce((a, b) => a + b, 0) / d.length) : null,
           sessions: d ? d.length : 0,
         };
@@ -85,7 +97,7 @@ export default function HabitPatterns({ theme }) {
       <CardContent className="space-y-3">
         {habits.length === 0 && (
           <p className="text-sm text-gray-600">
-            Nothing repeated yet. Once you finish the same kind of task a couple of times, it'll show up here — and if you use a Sprint or the Launchpad, we'll learn how long it actually takes you.
+            No habits spotted yet. Once you've done the same thing on a few separate days over a couple of weeks, it'll show up here — and if you use a Sprint or the Launchpad, we'll learn how long it actually takes you.
           </p>
         )}
 
