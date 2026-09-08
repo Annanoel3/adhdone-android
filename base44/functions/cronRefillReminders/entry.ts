@@ -275,9 +275,27 @@ Deno.serve(async (req) => {
   }
 
   // Build the 3 planned reminder entries for a birthday (mirrors the client scheduler).
-  function buildBirthdaySchedule(task: any, birthdayIso: string): any[] {
+  function buildBirthdaySchedule(task: any, birthdayIso: string, ownerName?: string): any[] {
     const person = task.birthday_person || 'Someone';
     const birthdayDate = new Date(birthdayIso);
+
+    // The user's OWN birthday isn't a "reach out to them" reminder — it's a
+    // celebration. One message, on the day, greeting them by name.
+    if (task.is_own_birthday || !task.birthday_person) {
+      const firstName = (ownerName || '').trim().split(/\s+/)[0];
+      if (birthdayDate.getTime() <= now.getTime()) return [];
+      return [{
+        notification_id: `planned_${task.id}_own_day_of_${birthdayDate.getTime()}`,
+        send_at: birthdayDate.toISOString(),
+        label: 'Day of',
+        kind: 'own_day_of',
+        notification_title: firstName ? `🎂 Happy Birthday, ${firstName}!` : '🎂 Happy Birthday!',
+        notification_body: firstName
+          ? `It's your day, ${firstName} 🎉 Take it easy on yourself today — you've earned it.`
+          : `It's your day 🎉 Take it easy on yourself today — you've earned it.`,
+        scheduled: false,
+      }];
+    }
     const toggles = {
       week_before: task.birthday_remind_week_before !== false,
       day_before: task.birthday_remind_day_before !== false,
@@ -325,12 +343,14 @@ Deno.serve(async (req) => {
 
   const birthdayTasks = allTasks.filter(t =>
     t.status === 'active' &&
-    t.birthday_person &&
+    (t.birthday_person || t.is_own_birthday || t.classification === 'birthday') &&
     t.next_reminder &&
     t.notification_recipient_email
   );
 
   for (const task of birthdayTasks) {
+    const ownerName = userMap[task.notification_recipient_email]?.full_name || '';
+    const isOwn = !!task.is_own_birthday || !task.birthday_person;
     let nextReminderIso = task.next_reminder;
     let schedule = Array.isArray(task.reminder_schedule) ? [...task.reminder_schedule] : [];
     let ids = Array.isArray(task.onesignal_notification_ids) ? [...task.onesignal_notification_ids] : [];
@@ -343,10 +363,13 @@ Deno.serve(async (req) => {
     if (dayAfter <= now) {
       const month = birthdayDate.getMonth() + 1;
       const day = birthdayDate.getDate();
-      const nextDate = computeNextBirthday(month, day);
+      // Keep the birthday's existing time-of-day on rollover instead of
+      // re-anchoring to the server's 9 AM (which is 9 AM UTC = pre-dawn local).
+      const nextDate = new Date(birthdayDate);
+      nextDate.setFullYear(birthdayDate.getFullYear() + 1);
       if (ids.length) await cancelOneSignalIds(ids);
       nextReminderIso = nextDate.toISOString();
-      schedule = buildBirthdaySchedule(task, nextReminderIso);
+      schedule = buildBirthdaySchedule(task, nextReminderIso, ownerName);
       ids = [];
       dirty = true;
       resetBirthdayText = true;
@@ -354,7 +377,13 @@ Deno.serve(async (req) => {
       console.log(`🎂 [REFILL] Rolled over "${task.title}" → ${nextDate.toLocaleDateString()}`);
     } else if (schedule.length === 0 && ids.length === 0) {
       // 2. Legacy/orphaned birthday with no plan at all — rebuild it
-      schedule = buildBirthdaySchedule(task, nextReminderIso);
+      schedule = buildBirthdaySchedule(task, nextReminderIso, ownerName);
+      dirty = true;
+    } else if (isOwn && schedule.some((e: any) => e.kind !== 'own_day_of')) {
+      // Own birthday that was previously planned as a generic event ("night
+      // before" / "1 hour before" with no name) — replace with the greeting.
+      // The reconcile step below cancels the old bookings.
+      schedule = buildBirthdaySchedule(task, nextReminderIso, ownerName);
       dirty = true;
     }
 
@@ -380,7 +409,7 @@ Deno.serve(async (req) => {
       // message, so this is the only nudge they get when nothing is written.
       let pushTitle = entry.notification_title;
       let pushBody = entry.notification_body;
-      if (!task.birthday_text_message && (entry.kind === 'week_before' || entry.kind === 'day_before' || entry.kind === 'day_of')) {
+      if (!isOwn && !task.birthday_text_message && (entry.kind === 'week_before' || entry.kind === 'day_before' || entry.kind === 'day_of')) {
         const person = task.birthday_person || 'Someone';
         const dateStr = new Date(nextReminderIso).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
         pushTitle = `🎂 Write a text for ${person}`;
@@ -448,7 +477,7 @@ Deno.serve(async (req) => {
     const isDayOf = bdayDate.getFullYear() === now.getFullYear() &&
                     bdayDate.getMonth() === now.getMonth() &&
                     bdayDate.getDate() === now.getDate();
-    if (isDayOf && task.birthday_text_sent !== true) {
+    if (isDayOf && !isOwn && task.birthday_text_sent !== true) {
       const owner = userMap[task.notification_recipient_email];
       const timeZone = owner?.timezone || null;
       if (timeZone) {
@@ -516,6 +545,8 @@ Deno.serve(async (req) => {
     t.status === 'active' &&
     !t.silenced &&
     !t.birthday_person &&
+    !t.is_own_birthday &&
+    t.classification !== 'birthday' &&
     (t.classification === 'event' || t.reminder_interval === 'once') &&
     t.notification_recipient_email &&
     Array.isArray(t.reminder_schedule) && t.reminder_schedule.length > 0

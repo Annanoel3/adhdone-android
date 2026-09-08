@@ -18,6 +18,17 @@ export function offsetMinutesAt(utcDate: Date, timeZone: string): number {
   return Math.round((localAsUtc - utcDate.getTime()) / 60000);
 }
 
+// Returns the UTC instant for a given local wall-clock date+time in `timeZone`.
+// Backend functions run with a UTC server clock, so `new Date(y, m-1, d, 9, 0)`
+// there produces 9 AM UTC — 4 AM US-Central — which is how all-day calendar
+// imports ended up anchored in the middle of the night.
+export function wallClockToUtc(year: number, month: number, day: number, hour: number, minute: number, timeZone: string | null): Date {
+  if (!timeZone) return new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  const target = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  const off = offsetMinutesAt(target, timeZone);
+  return new Date(target.getTime() - off * 60000);
+}
+
 // Returns the UTC instant for a reminder at local `hour:minute` on the day that
 // is `daysBefore` days before the event's local day, in the user's timezone.
 export function localReminderUtc(eventUtc: Date, daysBefore: number, hour: number, minute: number, timeZone: string | null): Date {

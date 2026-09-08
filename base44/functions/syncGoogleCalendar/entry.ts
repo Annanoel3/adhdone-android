@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { buildTaskParsePrompt } from '../../shared/taskParsePrompt.ts';
-import { localReminderUtc } from '../../shared/timezoneReminders.ts';
+import { localReminderUtc, wallClockToUtc } from '../../shared/timezoneReminders.ts';
 
 const CONNECTOR_ID = '6a04df00e62b57f635e00b0f';
 
@@ -58,7 +58,7 @@ function isOwnBirthday(title, personName, user) {
 // event dates (next_reminder, due_date, end_date for one-time events) and
 // refresh the sync record — so editing a Google event (e.g. extending a
 // hotel stay to multi-day) actually updates the app on resync.
-async function patchExistingTaskDates(base44, syncRec, taskRec, event) {
+async function patchExistingTaskDates(base44, syncRec, taskRec, event, timeZone) {
   const startRaw = event.start?.dateTime || event.start?.date || null;
   const endRaw = event.end?.dateTime || event.end?.date || null;
   const startChanged = (syncRec.start_time || null) !== startRaw;
@@ -76,7 +76,7 @@ async function patchExistingTaskDates(base44, syncRec, taskRec, event) {
   let nextReminderDate: Date | null = null;
   if (startRaw && /^\d{4}-\d{2}-\d{2}$/.test(startRaw)) {
     const [y, m, d] = startRaw.split('-').map(n => parseInt(n, 10));
-    nextReminderDate = new Date(y, m - 1, d, 9, 0, 0, 0);
+    nextReminderDate = wallClockToUtc(y, m, d, 9, 0, timeZone);
   } else if (startRaw) {
     nextReminderDate = new Date(startRaw);
   }
@@ -125,7 +125,7 @@ async function patchExistingTaskDates(base44, syncRec, taskRec, event) {
       let endDate: Date;
       if (/^\d{4}-\d{2}-\d{2}$/.test(endRaw)) {
         const [y, m, d] = endRaw.split('-').map(n => parseInt(n, 10));
-        endDate = new Date(y, m - 1, d - 1, 9, 0, 0, 0); // all-day end is exclusive
+        endDate = wallClockToUtc(y, m, d - 1, 9, 0, timeZone); // all-day end is exclusive
       } else {
         endDate = new Date(endRaw);
       }
@@ -185,6 +185,10 @@ async function classifyEventWithAI(base44, event) {
 
 async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
   const authHeader = { Authorization: `Bearer ${accessToken}` };
+  // All-day calendar items have no clock time, so we anchor them at 9 AM in the
+  // USER'S timezone. Without this the server's UTC clock made that 9 AM UTC,
+  // i.e. 4 AM local — and its "1 hour before" nudge landed at 3 AM.
+  const userTz = (user as any)?.timezone || null;
 
   // Fetch the connected Gmail account info
   let connectedEmail = calendarEmail;
@@ -247,7 +251,7 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
       const existing = existingByGoogleId[event.id];
       const existingTask = tasksById[existing.adhd_task_id];
       if (existingTask) {
-        const didUpdate = await patchExistingTaskDates(base44, existing, existingTask, event);
+        const didUpdate = await patchExistingTaskDates(base44, existing, existingTask, event, userTz);
         if (didUpdate) { updated++; } else { skipped++; }
         return;
       }
@@ -308,7 +312,7 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
           recTaskExists = !!recTask;
         } catch (e) { /* deleted */ }
         if (recTaskExists) {
-          const didUpdate = await patchExistingTaskDates(base44, rec, recTask, event);
+          const didUpdate = await patchExistingTaskDates(base44, rec, recTask, event, userTz);
           if (didUpdate) { updated++; } else { skipped++; }
           continue;
         }
@@ -347,7 +351,7 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
     let nextReminderDate;
     if (startRaw && /^\d{4}-\d{2}-\d{2}$/.test(startRaw)) {
       const [y, m, d] = startRaw.split('-').map(n => parseInt(n, 10));
-      nextReminderDate = new Date(y, m - 1, d, 9, 0, 0, 0);
+      nextReminderDate = wallClockToUtc(y, m, d, 9, 0, userTz);
     } else if (startRaw) {
       nextReminderDate = new Date(startRaw);
     } else {
@@ -442,7 +446,7 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
           let endDate;
           if (/^\d{4}-\d{2}-\d{2}$/.test(endRaw)) {
             const [y, m, d] = endRaw.split('-').map(n => parseInt(n, 10));
-            endDate = new Date(y, m - 1, d - 1, 9, 0, 0, 0);
+            endDate = wallClockToUtc(y, m, d - 1, 9, 0, userTz);
           } else {
             endDate = new Date(endRaw);
           }
@@ -468,7 +472,7 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
           let endDate;
           if (/^\d{4}-\d{2}-\d{2}$/.test(endRaw)) {
             const [y, m, d] = endRaw.split('-').map(n => parseInt(n, 10));
-            endDate = new Date(y, m - 1, d - 1, 9, 0, 0, 0);
+            endDate = wallClockToUtc(y, m, d - 1, 9, 0, userTz);
           } else {
             endDate = new Date(endRaw);
           }
@@ -543,8 +547,11 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
               // at 9 AM local, not 9 AM UTC (which would be 4 AM US-Central).
               reminderTime = localReminderUtc(scheduledDate, r.days_before || 0, r.hour || 0, r.minute || 0, userTimeZone);
             }
-            return { sendAtISO: reminderTime.toISOString(), label: r.label, notification_title: r.notification_title || '📅 Upcoming', notification_body: r.notification_body || title };
+            return { sendAtISO: reminderTime.toISOString(), label: r.label, notification_title: r.notification_title || '📅 Upcoming', notification_body: r.notification_body || title, isRelative: r.relative_minutes_before != null };
           })
+          // All-day items have no real clock time — only a 9 AM anchor — so a
+          // "1 hour before" nudge is meaningless and just fires before dawn.
+          .filter(r => !(isAllDay && r.isRelative))
           .filter(r => new Date(r.sendAtISO).getTime() > bufferMs)
           .filter(r => {
             // For events, never schedule a reminder after the event start time.
