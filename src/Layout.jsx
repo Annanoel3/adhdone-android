@@ -455,11 +455,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           icon: TrendingUp,
         },
         {
-          title: "Insights",
-          url: createPageUrl("Insights"),
-          icon: BarChart3,
-        },
-        {
           title: "Support Space",
           url: createPageUrl("SupportSpace"),
           icon: MessageCircleHeart,

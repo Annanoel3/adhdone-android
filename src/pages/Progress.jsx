@@ -1,374 +1,382 @@
 import React, { useState, useEffect } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Calendar, Zap, Clock, Target, CheckCircle2, BarChart2, Flame } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import StreakCard from "../components/home/StreakCard";
-import TodaysAccomplishments from "../components/home/TodaysAccomplishments";
 import { base44 } from "@/api/base44Client";
-import { updateTodaysSummary } from "../components/utils/dailySummaryHelper";
-import { isTodayTask } from "../components/utils/todayTasks";
-import FocusModeStats from "../components/progress/FocusModeStats";
-import RecurringTaskPatterns from "../components/progress/RecurringTaskPatterns";
-import { Button } from "@/components/ui/button";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
-} from "recharts";
+  TrendingUp,
+  Clock,
+  Target,
+  Calendar,
+  CalendarClock,
+  Zap,
+  Sparkles
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function Progress() {
   const [theme, setTheme] = useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
-  const [tasks, setTasks] = useState([]);
-  const [todaysSummary, setTodaysSummary] = useState(null);
-  const [summaries, setSummaries] = useState([]);
-  const [energyLogs, setEnergyLogs] = useState([]);
-  const [focusLogs, setFocusLogs] = useState([]);
-  const [userEmail, setUserEmail] = useState("");
-  const [specialMode, setSpecialMode] = useState(() => localStorage.getItem('special_mode') || 'normal');
+  const [insights, setInsights] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
-    // Recalculating + saving today's summary involves several writes, so it runs
-    // in the background instead of blocking the stats from showing.
-    updateTodaysSummary().then((s) => { if (s) setTodaysSummary((prev) => ({ ...(prev || {}), ...s })); });
+    loadInsights();
     const interval = setInterval(() => {
-      setTheme(localStorage.getItem('adhd_theme') || 'minimalist');
-      setSpecialMode(localStorage.getItem('special_mode') || 'normal');
+      const newTheme = localStorage.getItem('adhd_theme') || 'minimalist';
+      setTheme(newTheme);
     }, 100);
     return () => clearInterval(interval);
   }, []);
 
-  const loadData = async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const [allTasks, allSummaries, logs, fLogs, me] = await Promise.all([
-        base44.entities.Task.list('-updated_date', 1000),
-        base44.entities.DailySummary.list('-date', 30),
-        base44.entities.EnergyLog.list('-logged_at', 60),
-        base44.entities.FocusSessionLog.list('-completed_at', 200),
-        base44.auth.me(),
-      ]);
+  const loadInsights = async () => {
+    setIsLoading(true);
 
-      setTasks(allTasks);
-      setSummaries(allSummaries);
-      setEnergyLogs(logs);
-      setFocusLogs(fLogs);
-      setUserEmail(me?.email || "");
+    // Pull completed tasks separately so the "Tasks Done" total isn't silently
+    // capped by a recent-500 window that's mostly still-active tasks.
+    const tasks = await base44.entities.Task.list('-created_date', 500);
+    const allCompleted = await base44.entities.Task.filter({ status: 'completed' }, '-completed_at', 2000);
 
-      const todaySummary = allSummaries.find(s => s.date === today);
-      if (todaySummary) setTodaysSummary(todaySummary);
-    } catch (error) {
-      console.error("Error loading data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Analyze task completion by time
+    // Only genuine, still-existing completions count: no subtasks (they'd inflate
+    // one task into many), no birthdays (not something you "get done"), and a real
+    // completed_at timestamp. Deleted tasks are gone from the database entirely,
+    // so they can't be counted here.
+    const completedTasks = allCompleted.filter(t =>
+      t.completed_at && !t.parent_task_id && !t.birthday_person
+    );
 
-  const handleTaskUncomplete = async (task) => {
-    await base44.entities.Task.update(task.id, { status: 'active', completed_at: null });
-    await loadData();
-  };
+    const morningCompletions = completedTasks.filter(t => {
+      const hour = new Date(t.completed_at).getHours();
+      return hour >= 6 && hour < 12;
+    }).length;
 
-  const isSeasonalTheme = () =>
-    ['christmas', 'valentines', 'newyears', 'stpatricks', 'fourthjuly', 'summer', 'spring'].includes(specialMode);
+    const afternoonCompletions = completedTasks.filter(t => {
+      const hour = new Date(t.completed_at).getHours();
+      return hour >= 12 && hour < 18;
+    }).length;
 
-  const cardClass = `${isSeasonalTheme() ? `${specialMode}-card` : ''} border-none shadow-md ${
-    !isSeasonalTheme()
-      ? theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-      : ''
-  }`;
+    const eveningCompletions = completedTasks.filter(t => {
+      const hour = new Date(t.completed_at).getHours();
+      return hour >= 18 || hour < 6;
+    }).length;
 
-  const textClass = theme === 'dark' ? 'text-gray-100' : 'text-gray-900';
-  const subTextClass = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
+    // Best time of day
+    const bestTime = [
+      ['Morning', morningCompletions],
+      ['Afternoon', afternoonCompletions],
+      ['Evening', eveningCompletions],
+    ].sort((a, b) => b[1] - a[1])[0][0];
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
-  // Helper: get local date string YYYY-MM-DD
-  const getLocalDate = (isoString) => {
-    const d = new Date(isoString);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  };
-
-  const todayStr = getLocalDate(new Date().toISOString());
-
-  const allCompletedTasks = tasks.filter(t => t.status === 'completed' && !t.parent_task_id);
-  const activeTasks = tasks.filter(t => t.status === 'active' && !t.parent_task_id);
-  const todayActiveTasks = activeTasks.filter(t => isTodayTask(t, todayStr));
-
-  // Today-only completed tasks (for "Today" tab stats)
-  const todayCompletedTasks = allCompletedTasks.filter(t => {
-    const dateStr = t.completed_at ? getLocalDate(t.completed_at) : getLocalDate(t.updated_date);
-    return dateStr === todayStr;
-  });
-
-  // Build a map of completions per local date from real task data (all time, for charts)
-  const completionsByDate = {};
-  allCompletedTasks.forEach(t => {
-    if (t.completed_at) {
-      const dateStr = getLocalDate(t.completed_at);
-      completionsByDate[dateStr] = (completionsByDate[dateStr] || 0) + 1;
-    }
-  });
-
-  // Last 14 days — computed purely from real task completion data
-  const last14 = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = getLocalDate(d.toISOString());
-    const completed = completionsByDate[dateStr] || 0;
-    last14.push({
-      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      dateStr,
-      completed,
+    // Avg tasks finished per active day — computed from real completion
+    // timestamps. (The old "completion rate" divided by every open task you
+    // had, including ones not due yet, so a backlog made it meaningless.)
+    const completionsByDay = {};
+    completedTasks.forEach(t => {
+      const d = new Date(t.completed_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      completionsByDay[key] = (completionsByDay[key] || 0) + 1;
     });
-  }
+    const activeDays = Object.values(completionsByDay);
+    const avgPerActiveDay = activeDays.length > 0
+      ? Math.round((activeDays.reduce((a, b) => a + b, 0) / activeDays.length) * 10) / 10
+      : 0;
 
-  // Avg daily completion rate: average of each of the last 30 days that had any tasks
-  const last30Rates = [];
-  for (let i = 0; i < 30; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = getLocalDate(d.toISOString());
-    const doneCount = completionsByDate[dateStr] || 0;
-    if (doneCount > 0) last30Rates.push(doneCount);
-  }
-  const avgCompletionRate = last30Rates.length > 0
-    ? Math.round(last30Rates.reduce((a, b) => a + b, 0) / last30Rates.length)
-    : 0;
+    // Most productive day — averaged per occurrence of that weekday, not a raw
+    // total. A raw total just crowns whichever weekday you've simply had more of.
+    const dayTotals = {};
+    const dayDates = {};
+    completedTasks.forEach(t => {
+      const d = new Date(t.completed_at);
+      const day = d.getDay();
+      dayTotals[day] = (dayTotals[day] || 0) + 1;
+      (dayDates[day] = dayDates[day] || new Set()).add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    });
 
-  const currentStreak = todaysSummary?.streak_days || 0;
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const mostProductiveDay = Object.keys(dayTotals).length > 0
+      ? dayNames[Object.keys(dayTotals).reduce((a, b) =>
+          (dayTotals[a] / dayDates[a].size) >= (dayTotals[b] / dayDates[b].size) ? a : b)]
+      : 'Not enough data';
 
-  // Tasks completed by day of week (from real data — all time for pattern insights)
-  const byDayOfWeek = Array(7).fill(0).map((_, i) => ({
-    day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i],
-    count: 0
-  }));
-  allCompletedTasks.forEach(t => {
-    if (t.completed_at) {
-      const dow = new Date(t.completed_at).getDay();
-      byDayOfWeek[dow].count += 1;
+    // Current streak — counted from real completion days, not the DailySummary
+    // record (which only exists for days the app happened to write one). A day
+    // counts if at least one task was finished; the streak is still alive if the
+    // most recent completion day is today or yesterday.
+    const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    let currentStreak = 0;
+    const cursor = new Date();
+    if (!completionsByDay[dayKey(cursor)]) cursor.setDate(cursor.getDate() - 1);
+    while (completionsByDay[dayKey(cursor)]) {
+      currentStreak++;
+      cursor.setDate(cursor.getDate() - 1);
     }
-  });
 
-  // Energy by time of day
-  const energyByTime = { Morning: { total: 0, count: 0 }, Afternoon: { total: 0, count: 0 }, Evening: { total: 0, count: 0 } };
-  energyLogs.forEach(log => {
-    const hour = new Date(log.logged_at).getHours();
-    const bucket = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
-    const val = log.energy_level === 'high' ? 3 : log.energy_level === 'medium' ? 2 : 1;
-    energyByTime[bucket].total += val;
-    energyByTime[bucket].count += 1;
-  });
-  const energyChartData = Object.entries(energyByTime).map(([label, d]) => ({
-    label,
-    avg: d.count > 0 ? Math.round((d.total / d.count) * 10) / 10 : 0,
-  }));
+    // Due date push tracking — how many times the user postponed deadlines.
+    // Completed tasks are merged in: a task you finally finished after pushing
+    // it four times still counts, and it may be older than the recent-500 window.
+    const byId = {};
+    [...tasks, ...allCompleted].forEach(t => { byId[t.id] = t; });
+    const tasksWithPushes = Object.values(byId).filter(t => (t.due_date_pushes || 0) > 0 && !t.parent_task_id && !t.birthday_person);
+    const totalPushes = tasksWithPushes.reduce((sum, t) => sum + (t.due_date_pushes || 0), 0);
+    const mostPushed = tasksWithPushes
+      .sort((a, b) => (b.due_date_pushes || 0) - (a.due_date_pushes || 0))
+      .slice(0, 5)
+      .map(t => ({ title: t.title, pushes: t.due_date_pushes, status: t.status }));
 
-  const bestEnergyTime = energyChartData.reduce((best, cur) => cur.avg > best.avg ? cur : best, { label: 'N/A', avg: 0 }).label;
+    setInsights({
+      morningCompletions,
+      afternoonCompletions,
+      eveningCompletions,
+      bestTime,
+      avgPerActiveDay,
+      activeDayCount: activeDays.length,
+      mostProductiveDay,
+      totalTasksCompleted: completedTasks.length,
+      currentStreak,
+      totalDueDatePushes: totalPushes,
+      tasksPushed: tasksWithPushes.length,
+      mostPushedTasks: mostPushed,
+    });
 
-  const chartColors = theme === 'dark'
-    ? { primary: '#4ade80', secondary: '#60a5fa', muted: '#6b7280' }
-    : { primary: '#16a34a', secondary: '#3b82f6', muted: '#9ca3af' };
+    setIsLoading(false);
+  };
+
+  if (isLoading || !insights) {
+    return (
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Analyzing your patterns...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`min-h-screen p-4 md:p-8 ${
-      theme === 'spicybrains' ? 'bg-gradient-to-br from-green-300 via-green-400 to-green-500'
-        : theme === 'dark' ? 'bg-gray-900' : ''
-    }`}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <Card className={`${isSeasonalTheme() ? `${specialMode}-card` : ''} border-none shadow-lg mb-6 ${
-          !isSeasonalTheme()
-            ? theme === 'minimalist' ? 'bg-white/90 backdrop-blur-sm'
-              : theme === 'dark' ? 'bg-gray-800/90 backdrop-blur-sm'
-              : 'bg-gradient-to-br from-blue-50 to-indigo-50'
-            : ''
-        }`}>
-          <CardContent className="p-6">
-            <h1 className={`text-3xl font-bold mb-1 ${isSeasonalTheme() ? `${specialMode}-title` : textClass}`}>
-              Your Progress
-            </h1>
-            <p className={isSeasonalTheme() ? `${specialMode}-text` : subTextClass}>
-              Track your task habits and energy patterns
-            </p>
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Progress</h1>
+        <p className="text-gray-600">Understanding your productivity patterns</p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Task Completion Times */}
+        <Card className="border-none shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              When You Get Things Done
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">Morning</span>
+                  <span className="font-medium">{insights.morningCompletions} tasks</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-500 to-teal-500"
+                    style={{
+                      width: `${(insights.morningCompletions / (insights.totalTasksCompleted || 1)) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">Afternoon</span>
+                  <span className="font-medium">{insights.afternoonCompletions} tasks</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                    style={{
+                      width: `${(insights.afternoonCompletions / (insights.totalTasksCompleted || 1)) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">Evening</span>
+                  <span className="font-medium">{insights.eveningCompletions} tasks</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-500 to-red-500"
+                    style={{
+                      width: `${(insights.eveningCompletions / (insights.totalTasksCompleted || 1)) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={`p-4 rounded-xl mt-4 ${
+              theme === 'minimalist'
+                ? 'bg-blue-50 border border-blue-100'
+                : 'bg-gradient-to-r from-blue-100 to-purple-100'
+            }`}>
+              <p className="text-sm font-medium text-gray-900">
+                💡 You're most productive in the <span className="font-bold">{insights.bestTime}</span>
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        {isLoading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-4 border-gray-300 border-t-green-600 rounded-full animate-spin" />
-          </div>
-        )}
-
-        <Tabs defaultValue="overview" className={`w-full ${isLoading ? 'hidden' : ''}`}>
-          <TabsList className={`grid w-full max-w-md grid-cols-2 mb-6 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" />
-              Today
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Insights
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ── TODAY TAB ──────────────────────────────────────────────────── */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* Quick stats row */}
+        {/* Overall Stats */}
+        <Card className="border-none shadow-lg md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Your Overall Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'Completed today', value: todayCompletedTasks.length, icon: CheckCircle2 },
-                { label: 'Active today', value: todayActiveTasks.length, icon: Clock },
-                { label: 'Current streak', value: `${currentStreak}d`, icon: Flame },
-                { label: 'Avg per day (30d)', value: `${avgCompletionRate}`, icon: Target },
-              ].map(({ label, value, icon: Icon }) => (
-                <Card key={label} className={cardClass}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon className={`w-4 h-4 ${subTextClass}`} />
-                      <span className={`text-xs ${subTextClass}`}>{label}</span>
-                    </div>
-                    <p className={`text-3xl font-bold ${textClass}`}>{value}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              <div className={`p-4 rounded-xl text-center ${
+                theme === 'minimalist'
+                  ? 'bg-green-50'
+                  : 'bg-gradient-to-br from-green-100 to-teal-100'
+              }`}>
+                <Target className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                <div className="text-2xl font-bold text-gray-900">{insights.avgPerActiveDay}</div>
+                <p className="text-xs text-gray-600 mt-1">Avg. Tasks/Day</p>
+                <p className="text-[10px] text-gray-500">on days you got stuff done</p>
+              </div>
+
+              <div className={`p-4 rounded-xl text-center ${
+                theme === 'minimalist'
+                  ? 'bg-orange-50'
+                  : 'bg-gradient-to-br from-orange-100 to-red-100'
+              }`}>
+                <Zap className="w-8 h-8 mx-auto mb-2 text-orange-600" />
+                <div className="text-2xl font-bold text-gray-900">{insights.currentStreak}</div>
+                <p className="text-xs text-gray-600 mt-1">Day Streak</p>
+              </div>
+
+              <div className={`p-4 rounded-xl text-center ${
+                theme === 'minimalist'
+                  ? 'bg-blue-50'
+                  : 'bg-gradient-to-br from-blue-100 to-purple-100'
+              }`}>
+                <Calendar className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                <div className="text-2xl font-bold text-gray-900">{insights.totalTasksCompleted}</div>
+                <p className="text-xs text-gray-600 mt-1">Tasks Done</p>
+              </div>
+
+              <div className={`p-4 rounded-xl text-center ${
+                theme === 'minimalist'
+                  ? 'bg-purple-50'
+                  : 'bg-gradient-to-br from-purple-100 to-pink-100'
+              }`}>
+                <Clock className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                <div className="text-base font-bold text-gray-900">{insights.mostProductiveDay}</div>
+                <p className="text-xs text-gray-600 mt-1">Best Day</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Due Date Push Tracking */}
+        <Card className="border-none shadow-lg md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="w-5 h-5" />
+              Deadline Dodging
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className={`p-4 rounded-xl text-center ${
+                theme === 'minimalist' ? 'bg-amber-50' : 'bg-gradient-to-br from-amber-100 to-orange-100'
+              }`}>
+                <div className="text-2xl font-bold text-gray-900">{insights.totalDueDatePushes}</div>
+                <p className="text-xs text-gray-600 mt-1">Total Due Date Pushes</p>
+              </div>
+              <div className={`p-4 rounded-xl text-center ${
+                theme === 'minimalist' ? 'bg-purple-50' : 'bg-gradient-to-br from-purple-100 to-pink-100'
+              }`}>
+                <div className="text-2xl font-bold text-gray-900">{insights.tasksPushed}</div>
+                <p className="text-xs text-gray-600 mt-1">Tasks Postponed</p>
+              </div>
             </div>
 
-            <TodaysAccomplishments tasks={tasks} theme={theme} onUncomplete={handleTaskUncomplete} />
-            <StreakCard theme={theme} summary={todaysSummary} />
-          </TabsContent>
-
-          {/* ── INSIGHTS TAB ───────────────────────────────────────────────── */}
-          <TabsContent value="insights" className="space-y-6">
-            {/* All-time stats */}
-            <div className="grid md:grid-cols-3 gap-4">
-              <Card className={cardClass}>
-                <CardContent className="p-5">
-                  <p className={`text-xs mb-1 ${subTextClass}`}>Tasks completed (all time)</p>
-                  <p className={`text-4xl font-bold ${textClass}`}>{allCompletedTasks.length}</p>
-                </CardContent>
-              </Card>
-              <Card className={cardClass}>
-                <CardContent className="p-5">
-                  <p className={`text-xs mb-1 ${subTextClass}`}>Avg tasks/day</p>
-                  <p className={`text-4xl font-bold ${textClass}`}>{avgCompletionRate}</p>
-                  <p className={`text-xs mt-1 ${subTextClass}`}>on active days (last 30d)</p>
-                </CardContent>
-              </Card>
-              <Card className={cardClass}>
-                <CardContent className="p-5">
-                  <p className={`text-xs mb-1 ${subTextClass}`}>Peak energy time</p>
-                  <p className={`text-3xl font-bold ${textClass}`}>{bestEnergyTime}</p>
-                  <p className={`text-xs mt-1 ${subTextClass}`}>based on check-ins</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <FocusModeStats
-              logs={focusLogs}
-              tasks={tasks}
-              userEmail={userEmail}
-              theme={theme}
-              cardClass={cardClass}
-              textClass={textClass}
-              subTextClass={subTextClass}
-              onManualAdded={loadData}
-            />
-
-            <RecurringTaskPatterns
-              tasks={tasks}
-              focusLogs={focusLogs}
-              theme={theme}
-              cardClass={cardClass}
-              textClass={textClass}
-              subTextClass={subTextClass}
-            />
-
-            {/* Tasks completed last 14 days */}
-            <Card className={cardClass}>
-              <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${textClass}`}>
-                  <BarChart2 className="w-5 h-5" />
-                  Tasks Completed — Last 14 Days
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={last14} barSize={20}>
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: chartColors.muted }} interval={1} />
-                    <YAxis tick={{ fontSize: 11, fill: chartColors.muted }} allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{ background: theme === 'dark' ? '#1f2937' : '#fff', borderColor: '#e5e7eb' }}
-                      labelStyle={{ color: theme === 'dark' ? '#d1d5db' : '#374151' }}
-                    />
-                    <Bar dataKey="completed" fill={chartColors.primary} radius={[4, 4, 0, 0]} name="Completed" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Tasks by day of week */}
-            <Card className={cardClass}>
-              <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${textClass}`}>
-                  <Calendar className="w-5 h-5" />
-                  Most Productive Days
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={byDayOfWeek} barSize={30}>
-                    <XAxis dataKey="day" tick={{ fontSize: 12, fill: chartColors.muted }} />
-                    <YAxis tick={{ fontSize: 11, fill: chartColors.muted }} allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{ background: theme === 'dark' ? '#1f2937' : '#fff', borderColor: '#e5e7eb' }}
-                      labelStyle={{ color: theme === 'dark' ? '#d1d5db' : '#374151' }}
-                    />
-                    <Bar dataKey="count" fill={chartColors.secondary} radius={[4, 4, 0, 0]} name="Tasks done" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Energy by time of day */}
-            {energyLogs.length > 0 && (
-              <Card className={cardClass}>
-                <CardHeader>
-                  <CardTitle className={`flex items-center gap-2 ${textClass}`}>
-                    <Zap className="w-5 h-5" />
-                    Average Energy by Time of Day
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <BarChart data={energyChartData} barSize={50}>
-                      <XAxis dataKey="label" tick={{ fontSize: 13, fill: chartColors.muted }} />
-                      <YAxis tick={{ fontSize: 11, fill: chartColors.muted }} domain={[0, 3]} ticks={[1, 2, 3]}
-                        tickFormatter={(v) => ['', 'Low', 'Med', 'High'][v]} />
-                      <Tooltip
-                        contentStyle={{ background: theme === 'dark' ? '#1f2937' : '#fff', borderColor: '#e5e7eb' }}
-                        formatter={(v) => [v, 'Avg energy']}
-                      />
-                      <Bar dataKey="avg" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Avg energy" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+            {insights.mostPushedTasks && insights.mostPushedTasks.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">Most postponed:</p>
+                {insights.mostPushedTasks.map((t, i) => (
+                  <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${
+                    theme === 'minimalist' ? 'bg-gray-50' : 'bg-white/60'
+                  }`}>
+                    <span className={`text-sm flex-1 truncate ${t.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                      {t.title}
+                    </span>
+                    <Badge className="bg-amber-100 text-amber-700 ml-2 flex-shrink-0">
+                      Pushed {t.pushes}x
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             )}
 
-          </TabsContent>
-        </Tabs>
+            {(!insights.mostPushedTasks || insights.mostPushedTasks.length === 0) && (
+              <div className={`p-4 rounded-xl text-center ${
+                theme === 'minimalist' ? 'bg-green-50' : 'bg-gradient-to-r from-green-100 to-teal-100'
+              }`}>
+                <p className="text-sm text-gray-700">
+                  No pushed deadlines — you're staying on top of things! 🎯
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div className="mt-8 text-center" style={{ paddingBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))' }}>
-          <Button
-            onClick={() => window.triggerEasterEgg?.('awesome')}
-            variant="ghost" size="sm"
-            className={`text-xs opacity-30 hover:opacity-100 transition-opacity ${
-              theme === 'dark' ? 'text-gray-500 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Click me
-          </Button>
-        </div>
+        {/* Actionable Recommendations */}
+        <Card className={`border-none shadow-lg md:col-span-2 ${
+          theme === 'minimalist'
+            ? 'bg-gradient-to-r from-purple-50 to-blue-50'
+            : 'bg-gradient-to-r from-purple-100 via-pink-100 to-orange-100'
+        }`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              Personalized Recommendations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 rounded-full bg-purple-600 mt-2 flex-shrink-0" />
+              <p className="text-gray-700">
+                Schedule your most important tasks during your <strong>{insights.bestTime.toLowerCase()}</strong> hours when you're most productive.
+              </p>
+            </div>
+            {insights.totalDueDatePushes >= 3 && (
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
+                <p className="text-gray-700">
+                  You've pushed deadlines <strong>{insights.totalDueDatePushes}</strong> times. The tasks you keep postponing might need to be broken into smaller steps — or they might not actually matter to you, and that's okay too.
+                </p>
+              </div>
+            )}
+            {insights.avgPerActiveDay > 0 && insights.avgPerActiveDay < 2 && (
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 rounded-full bg-purple-600 mt-2 flex-shrink-0" />
+                <p className="text-gray-700">
+                  Consider breaking down tasks into smaller steps to boost your completion rate.
+                </p>
+              </div>
+            )}
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 rounded-full bg-purple-600 mt-2 flex-shrink-0" />
+              <p className="text-gray-700">
+                Keep building that streak! Consistency is more important than perfection.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
