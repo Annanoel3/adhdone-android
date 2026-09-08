@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Mic, Square, Loader2, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Mic, Square, Loader2, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
@@ -17,7 +18,17 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [typedText, setTypedText] = useState("");
   const navigate = useNavigate();
+
+  // Typed input goes through the exact same command handling as speech, so
+  // typing and speaking behave identically.
+  const handleTypedSubmit = async () => {
+    const text = typedText.trim();
+    if (!text) return;
+    setTypedText("");
+    await processVoiceCommand(text);
+  };
 
   useEffect(() => {
     const handleOpen = () => {
@@ -200,6 +211,7 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
     setIsOpen(false);
     setFeedbackMessage("");
     setProcessingMessage("");
+    setTypedText("");
   };
 
   return (
@@ -208,15 +220,6 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
         theme === 'dark' ? 'bg-gray-800' : 'bg-white'
       }`}>
         <div className="flex flex-col items-center justify-center p-6 space-y-6">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={handleClose}
-            className="absolute top-4 right-4"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-
           <div className={`w-24 h-24 rounded-full flex items-center justify-center ${
             isRecording
               ? 'bg-red-500 animate-pulse'
@@ -284,6 +287,32 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
                 </>
               )}
             </Button>
+          )}
+
+          {!isProcessing && !isRecording && (
+            <div className="w-full space-y-2">
+              <div className="flex items-center gap-3">
+                <div className={`flex-1 h-px ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`} />
+                <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>or type it</span>
+                <div className={`flex-1 h-px ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`} />
+              </div>
+              <Textarea
+                value={typedText}
+                onChange={(e) => setTypedText(e.target.value)}
+                placeholder="Type what you need to remember..."
+                rows={2}
+                className={theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : ''}
+              />
+              <Button
+                variant="outline"
+                disabled={!typedText.trim()}
+                onClick={handleTypedSubmit}
+                className="w-full"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Add It
+              </Button>
+            </div>
           )}
         </div>
       </DialogContent>
