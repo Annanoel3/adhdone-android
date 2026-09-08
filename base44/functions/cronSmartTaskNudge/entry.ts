@@ -49,11 +49,17 @@ Deno.serve(async (req) => {
     // nudge them (duplicate notifications). "once" = one-time precise (own flow).
     // Events, birthdays, and day-only-night-before are also excluded.
     const RECURRING_INTERVALS = new Set(['10min', '20min', '30min', '1hour', '2hours', '4hours', 'daily', 'every_other_day']);
+    // Smart nudges own everything EXCEPT three things: birthdays, events, and a
+    // task pinned to a specific clock time. A DAY-ONLY task ("do X tomorrow")
+    // has no time — it is exactly what smart nudges are for, even though the
+    // capture pipeline stores it with reminder_interval 'once'. Requiring a
+    // null interval silently excluded every day-only task from the pool.
     const isSmartNudgeTask = (t: any) =>
       t.status === 'active' &&
       !t.silenced &&
       !t.parent_task_id && // sub-tasks are context for their parent, not independent nudges
-      !t.reminder_interval && // null only — "once" and recurring have their own flows
+      !RECURRING_INTERVALS.has(t.reminder_interval) && // explicit intervals have their own refill flow
+      !(t.reminder_interval === 'once' && !t.day_only_task) && // pinned to a clock time — own flow
       t.classification !== 'birthday' && t.classification !== 'event' &&
       !t.birthday_person;
 
