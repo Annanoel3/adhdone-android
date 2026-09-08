@@ -349,6 +349,14 @@ async function generateDailySchedule(
   if (nudgeable.length === 0) return [];
   tasks = nudgeable;
 
+  // The already-nudged list is a SECOND way a task reaches the LLM, and it was
+  // built from the unfiltered list — so a task the filter just excluded came
+  // back in as "check in on this one" and got re-nudged every regeneration.
+  // Only tasks still in the nudgeable pool may appear there.
+  alreadyNudgedTitles = alreadyNudgedTitles.filter((title) =>
+    tasks.some((t) => t.title === title)
+  );
+
   const taskList = tasks.map((t, i) => {
     let dueInfo = 'no due date';
     if (t.due_date) {
