@@ -78,6 +78,9 @@ export default function CalendarGrid({ tasks = [], events = [], isDark, onItemOp
   });
   const [selected, setSelected] = useState(() => new Date());
   const [useEmoji, setUseEmoji] = useState(() => {
+    // Profile first — it's the saved choice. Only fall back to the device
+    // cache (then the emoji default) when the profile has no value yet.
+    if (typeof user?.calendar_use_emoji === 'boolean') return user.calendar_use_emoji;
     const stored = localStorage.getItem('calendar_use_emoji');
     return stored === null ? true : stored === 'true';
   });

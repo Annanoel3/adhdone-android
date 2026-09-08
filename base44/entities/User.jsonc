@@ -127,6 +127,10 @@
       "type": "boolean",
       "default": false,
       "description": "Set to true when a task is marked urgent (or other significant change) to trigger schedule regeneration on the next cron run."
+    },
+    "calendar_use_emoji": {
+      "type": "boolean",
+      "description": "Calendar display mode: true = emoji icons, false = text titles. Saved from the Emoji/Text toggle on the Calendar page so the choice follows the user across devices."
     }
   },
   "name": "User"
