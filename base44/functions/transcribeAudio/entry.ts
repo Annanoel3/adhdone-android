@@ -1,16 +1,25 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
-import OpenAI from "npm:openai";
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 
-Deno.serve(async (req) => {
-  await createClientFromRequest(req);
-  const { audio_base64, filename } = await req.json();
-  const binaryStr = atob(audio_base64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
+export default async function (req) {
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { file_url } = await req.json();
+    if (!file_url) {
+      return Response.json({ success: false, error: 'file_url is required' }, { status: 400 });
+    }
+
+    const transcription = await base44.integrations.Core.TranscribeAudio({ audio_url: file_url });
+    const text = typeof transcription === 'string' ? transcription : (transcription?.text || '');
+
+    if (!text.trim()) {
+      return Response.json({ success: false, error: 'Nothing was heard — try again.' });
+    }
+
+    return Response.json({ success: true, transcription: text, text });
+  } catch (error) {
+    return Response.json({ success: false, error: error.message }, { status: 500 });
   }
-  const audioFile = new File([bytes], filename || 'audio.webm', { type: 'audio/webm' });
-  const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
-  const transcription = await openai.audio.transcriptions.create({ file: audioFile, model: "whisper-1" });
-  return Response.json({ text: transcription.text });
-});
+}
