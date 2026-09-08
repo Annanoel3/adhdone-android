@@ -80,21 +80,32 @@ export default function Progress() {
       ? Math.round((activeDays.reduce((a, b) => a + b, 0) / activeDays.length) * 10) / 10
       : 0;
 
-    // Most productive day — averaged per occurrence of that weekday, not a raw
-    // total. A raw total just crowns whichever weekday you've simply had more of.
+    // Most productive day — tasks per CALENDAR occurrence of that weekday
+    // (every Thursday since you started, not just the Thursdays you got
+    // something done). Dividing by active days only made a weekday you rarely
+    // touch look like your best one.
     const dayTotals = {};
-    const dayDates = {};
+    let earliest = null;
     completedTasks.forEach(t => {
       const d = new Date(t.completed_at);
-      const day = d.getDay();
-      dayTotals[day] = (dayTotals[day] || 0) + 1;
-      (dayDates[day] = dayDates[day] || new Set()).add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+      dayTotals[d.getDay()] = (dayTotals[d.getDay()] || 0) + 1;
+      if (!earliest || d < earliest) earliest = d;
     });
+
+    const weekdayOccurrences = {};
+    if (earliest) {
+      const cur = new Date(earliest);
+      const end = new Date();
+      while (cur <= end) {
+        weekdayOccurrences[cur.getDay()] = (weekdayOccurrences[cur.getDay()] || 0) + 1;
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
 
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const mostProductiveDay = Object.keys(dayTotals).length > 0
       ? dayNames[Object.keys(dayTotals).reduce((a, b) =>
-          (dayTotals[a] / dayDates[a].size) >= (dayTotals[b] / dayDates[b].size) ? a : b)]
+          (dayTotals[a] / (weekdayOccurrences[a] || 1)) >= (dayTotals[b] / (weekdayOccurrences[b] || 1)) ? a : b)]
       : 'Not enough data';
 
     // Current streak — counted from real completion days, not the DailySummary
@@ -154,7 +165,7 @@ export default function Progress() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Progress</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Insights</h1>
         <p className="text-gray-600">Understanding your productivity patterns</p>
       </div>
 

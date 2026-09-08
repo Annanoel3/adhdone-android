@@ -239,7 +239,7 @@ export default function EndOfDayReview({ isOpen, onClose, theme }) {
                 <div className={`text-2xl sm:text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   {summary.tasks_completed}
                 </div>
-                <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Completed</p>
+                <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Today's Completed</p>
               </CardContent>
             </Card>
 
@@ -250,7 +250,7 @@ export default function EndOfDayReview({ isOpen, onClose, theme }) {
                 <div className={`text-2xl sm:text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   {summary.tasks_remaining}
                 </div>
-                <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Remaining</p>
+                <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Today's Remaining</p>
               </CardContent>
             </Card>
 

@@ -450,7 +450,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
       icon: Sparkles,
       subItems: [
         {
-          title: "Progress",
+          title: "Insights",
           url: createPageUrl("Progress"),
           icon: TrendingUp,
         },
