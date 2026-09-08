@@ -11,6 +11,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import HabitPatterns from "@/components/progress/HabitPatterns";
 
 export default function Progress() {
   const [theme, setTheme] = useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
@@ -279,6 +280,8 @@ export default function Progress() {
             </div>
           </CardContent>
         </Card>
+
+        <HabitPatterns theme={theme} />
 
         {/* Due Date Push Tracking */}
         <Card className="border-none shadow-lg md:col-span-2">
