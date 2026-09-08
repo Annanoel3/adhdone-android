@@ -878,8 +878,8 @@ export default function TaskCard({
                     >
                       <Calendar className="w-3 h-3" />
                       {task.end_date && new Date(task.next_reminder).toDateString() !== new Date(task.end_date).toDateString()
-                        ? `${formatEventDateRange()} • ${formatReminderTime(task.next_reminder)}`
-                        : `${formatReminderDate(task.next_reminder)} • ${formatReminderTime(task.next_reminder)}`}
+                        ? `${formatEventDateRange()}${task.day_only_task ? ' • all day' : ` • ${formatReminderTime(task.next_reminder)}`}`
+                        : `${formatReminderDate(task.next_reminder)}${task.day_only_task ? ' • all day' : ` • ${formatReminderTime(task.next_reminder)}`}`}
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className={`w-72 p-2 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : ''}`} onClick={(e) => e.stopPropagation()}>

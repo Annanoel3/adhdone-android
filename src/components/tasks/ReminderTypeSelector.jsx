@@ -76,7 +76,12 @@ export default function ReminderTypeSelector({ task, theme, onChangeType }) {
   if (currentType === 'repeat') pillLabel = `Repeats ${task.recurrence_pattern}`;
   if (currentType === 'once' && task.next_reminder) {
     const d = new Date(task.next_reminder);
-    pillLabel = `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // The user never gave a clock time — 9 AM is just the internal day anchor,
+    // so showing it would invent a time they didn't set. Smart nudges run all day.
+    pillLabel = task.day_only_task
+      ? `${dateStr} • all day`
+      : `${dateStr} • ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
   }
   if (currentType === 'event' && task.event_time) {
     const d = new Date(task.event_time);
