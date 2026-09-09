@@ -1,0 +1,39 @@
+{
+  "name": "Reschedule OneSignal on Task Edit",
+  "description": "",
+  "trigger": {
+    "condition": "${ ((.trigger.changed_fields | index(\"status\") != null) or (.trigger.changed_fields | index(\"title\") != null) or (.trigger.changed_fields | index(\"reminder_interval\") != null) or (.trigger.changed_fields | index(\"due_date\") != null) or (.trigger.changed_fields == null) or (.trigger.changed_fields == null or .trigger.changed_fields == \"\" or .trigger.changed_fields == [] or .trigger.changed_fields == {})) }",
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create",
+        "update",
+        "delete"
+      ],
+      "entity_name": "Task"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "reschedule_onesignal_on_task_edit",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "onTaskUpdate",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "onTaskUpdate"
+  }
+}

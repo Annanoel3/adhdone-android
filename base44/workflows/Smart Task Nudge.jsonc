@@ -1,0 +1,44 @@
+{
+  "name": "Smart Task Nudge",
+  "description": "Every hour, looks at all day-only tasks due today for each user and uses the LLM to send ONE context-aware nudge (morning = easy win, urgent = persistent reminder) instead of per-task hourly notifications that flood the tray.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "interval",
+      "cron_expression": null,
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": 30,
+      "interval_unit": "minutes",
+      "interval_anchor": "2026-08-20T13:39:19.743000",
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "smart_task_nudge",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "cronSmartTaskNudge",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "cronSmartTaskNudge"
+  }
+}
