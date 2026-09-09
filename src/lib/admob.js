@@ -1,79 +1,63 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 const AD_UNIT_ID = 'ca-app-pub-7979856440890193/4453371625';
-const SHOW_EVERY_N_OPENS = 3;  // Show ad every 3rd app open
-const AD_DELAY_MS = 30000;     // Wait 15 seconds before showing
 
 let AdMob = null;
-let hasShownAdThisLaunch = false;
-let hasInitializedAdMob = false;
+let initPromise = null;      // the actual init promise, so callers can await it
+let adInFlight = false;      // single-flight: one prepare/show at a time
+let shownThisLaunch = false; // at most one interstitial per app launch
 
-/**
- * Check if an input field is currently focused (user is typing)
- * or if the microphone is active (user is speaking)
- */
-function isUserBusy() {
-  const activeElement = document.activeElement;
-  const isTyping = activeElement && (
-    activeElement.tagName === 'INPUT' || 
-    activeElement.tagName === 'TEXTAREA' || 
-    activeElement.contentEditable === 'true'
-  );
-  const isMicActive = !!document.querySelector('[data-mic-active="true"]') ||
-                      !!window.__microphoneActive;
-  return isTyping || isMicActive;
-}
+export function initAdMob() {
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    if (!Capacitor.isNativePlatform()) return false;
+    try {
+      const plugin = registerPlugin('AdMob');
+      await plugin.initialize({ initializeForTesting: false });
 
-export async function initAdMob() {
-  if (hasInitializedAdMob) return;
-  hasInitializedAdMob = true;
+      // UMP consent BEFORE any ad request.
+      try {
+        const info = await plugin.requestConsentInfo();
+        if (info?.isConsentFormAvailable && info.status === 'REQUIRED') {
+          await plugin.showConsentForm();
+        }
+      } catch (e) {
+        console.warn('[AdMob] consent step failed, skipping ads:', e);
+        return false;
+      }
 
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    AdMob = registerPlugin('AdMob');
-    await AdMob.initialize({ initializeForTesting: false });
-    console.log('[AdMob] initialized');
-  } catch (e) {
-    console.warn('[AdMob] init failed:', e);
-    AdMob = null;
-  }
+      // The plugin dispatches MobileAds.initialize() without awaiting it,
+      // so give the SDK a moment to finish its first-run config fetch.
+      await new Promise(r => setTimeout(r, 3000));
+
+      AdMob = plugin;
+      console.log('[AdMob] ready');
+      return true;
+    } catch (e) {
+      console.warn('[AdMob] init failed:', e);
+      AdMob = null;
+      return false;
+    }
+  })();
+  return initPromise;
 }
 
 export async function showInterstitialAd() {
-  if (!AdMob) return false;
+  if (shownThisLaunch || adInFlight) return false;   // once per launch, single-flight
+  const ready = await initAdMob();                   // never request before init+consent
+  if (!ready || !AdMob) return false;
+
+  adInFlight = true;
   try {
     await AdMob.prepareInterstitial({ adId: AD_UNIT_ID, isTesting: false });
+    shownThisLaunch = true;              // set before show so a retry can't double-show
     await AdMob.showInterstitial();
     return true;
   } catch (e) {
-    console.warn('[AdMob] interstitial failed:', e);
+    // No-fill / load failure / consent refusal all land here: just don't show.
+    console.warn('[AdMob] interstitial skipped:', e);
     return false;
-  }
-}
-
-export async function maybeShowAdOnOpen() {
-  if (hasShownAdThisLaunch) return;
-  hasShownAdThisLaunch = true;
-
-  // Use the same key as App.jsx
-  const count = parseInt(localStorage.getItem('app_open_count') || '0');
-
-  if (count % SHOW_EVERY_N_OPENS === 0) {
-    // Wait 15 seconds before attempting to show the ad
-    await new Promise(resolve => setTimeout(resolve, AD_DELAY_MS));
-    
-    // Wait until user is not typing or speaking
-    await new Promise(resolve => {
-      const check = () => {
-        if (!isUserBusy()) {
-          resolve();
-        } else {
-          setTimeout(check, 500);
-        }
-      };
-      check();
-    });
-    
-    await showInterstitialAd();
+  } finally {
+    adInFlight = false;
   }
 }

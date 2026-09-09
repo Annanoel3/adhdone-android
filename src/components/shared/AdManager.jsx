@@ -32,9 +32,14 @@ export default function AdManager() {
   useEffect(() => {
     if (!isCapacitor()) return;
     initAdMob().catch(() => {});
-    const raw = localStorage.getItem(AD_OPEN_KEY);
-    const count = raw ? parseInt(raw, 10) + 1 : 1;
-    localStorage.setItem(AD_OPEN_KEY, String(count));
+    // Count once per app launch, not once per page navigation (this component
+    // remounts with the layout on every route change).
+    let count = parseInt(localStorage.getItem(AD_OPEN_KEY) || '0', 10);
+    if (!sessionStorage.getItem('admgr_counted_this_launch')) {
+      count += 1;
+      localStorage.setItem(AD_OPEN_KEY, String(count));
+      sessionStorage.setItem('admgr_counted_this_launch', '1');
+    }
     if (!shouldShowAd(count)) return;
     delayRef.current = setTimeout(() => tryShowAd(), 30000);
     return () => {
