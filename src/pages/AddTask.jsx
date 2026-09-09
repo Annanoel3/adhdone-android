@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Sparkles, Mic, Loader2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Mic, Loader2, ImagePlus } from "lucide-react";
+import PhotoTaskInput from "@/components/addtask/PhotoTaskInput";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -201,6 +202,22 @@ export default function AddTask() {
               >
                 Type
               </Button>
+              <Button
+                variant={inputMode === 'photo' ? 'default' : 'outline'}
+                onClick={() => setInputMode('photo')}
+                className={`px-5 h-10 ${
+                  inputMode === 'photo' && theme === 'minimalist'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : inputMode === 'photo' && theme === 'spicybrains'
+                      ? 'bg-gradient-to-r from-red-600 to-yellow-600'
+                      : inputMode === 'photo' && theme !== 'dark'
+                        ? 'bg-gradient-to-r from-purple-600 to-orange-600'
+                        : ''
+                }`}
+              >
+                <ImagePlus className="w-5 h-5 mr-2" />
+                Photo
+              </Button>
             </div>
 
             <AnimatePresence mode="wait">
@@ -258,6 +275,16 @@ export default function AddTask() {
                   <p className="text-sm text-gray-500 text-center">
                     {isTranscribing ? 'One sec...' : isRecording ? 'Tap to Stop' : 'Tap to Speak'}
                   </p>
+                </motion.div>
+              ) : inputMode === 'photo' ? (
+                <motion.div
+                  key="photo"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="flex-1 flex flex-col min-h-0"
+                >
+                  <PhotoTaskInput theme={theme} onCaptureText={submitCapture} />
                 </motion.div>
               ) : (
                 <motion.div
