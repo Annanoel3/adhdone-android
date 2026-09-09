@@ -127,6 +127,20 @@ export default function Tasks() {
     setAllTasks(fetchedTasks);
   };
 
+  // Opened with ?taskId= (e.g. tapping a task on the home-screen widget) —
+  // show that task's details card once the tasks are loaded.
+  const openedFromParamRef = React.useRef(false);
+  useEffect(() => {
+    if (openedFromParamRef.current || allTasks.length === 0) return;
+    const taskId = new URLSearchParams(window.location.search).get('taskId');
+    if (!taskId) return;
+    const found = allTasks.find(t => t.id === taskId);
+    if (!found) return;
+    openedFromParamRef.current = true;
+    setSelectedTask(found);
+    setIsDetailsModalOpen(true);
+  }, [allTasks]);
+
   const handleTaskUpdate = (updatedTask) => {
     setAllTasks(prev => prev.map(t => t.id === updatedTask.id ? { ...t, ...updatedTask } : t));
   };

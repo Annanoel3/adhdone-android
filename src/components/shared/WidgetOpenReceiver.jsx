@@ -27,8 +27,13 @@ export default function WidgetOpenReceiver() {
     const bridge = window.Capacitor?.Plugins?.WidgetBridge;
     if (!bridge) return;
 
-    const deliver = (path) => {
-      if (!isSafePath(path)) return;
+    const deliver = (rawPath) => {
+      if (!isSafePath(rawPath)) return;
+      // A widget task tap should land on the task's details card, not the
+      // reminder/snooze screen the push notifications use.
+      const path = rawPath.startsWith('/TaskNotification')
+        ? rawPath.replace('/TaskNotification', '/Tasks')
+        : rawPath;
       const now = Date.now();
       if (lastDelivered.path === path && now - lastDelivered.at < 5000) return;
       lastDelivered = { path, at: now };
