@@ -60,6 +60,7 @@ import ScheduledTextSendPopup from "./components/scheduledtexts/ScheduledTextSen
 import BirthdayTextPromptPopup from "./components/birthdays/BirthdayTextPromptPopup";
 import OwnBirthdayPopup from "./components/birthdays/OwnBirthdayPopup";
 import SharedTextReceiver from "./components/shared/SharedTextReceiver";
+import SharedImageReceiver from "./components/shared/SharedImageReceiver";
 import HomeZipPrompt from "./components/shared/HomeZipPrompt";
 import QuickCapturePrompt from "./components/shared/QuickCapturePrompt";
 import TaskCaptureProcessor from "./components/shared/TaskCaptureProcessor";
@@ -1028,6 +1029,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
         <BirthdayTextPromptPopup user={user} theme={theme} />
         <OwnBirthdayPopup user={user} theme={theme} />
         <SharedTextReceiver />
+        <SharedImageReceiver />
         <HomeZipPrompt user={user} theme={theme} />
         <QuickCapturePrompt />
         <TaskCaptureProcessor />
