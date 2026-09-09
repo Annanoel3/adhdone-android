@@ -62,6 +62,7 @@ import OwnBirthdayPopup from "./components/birthdays/OwnBirthdayPopup";
 import SharedTextReceiver from "./components/shared/SharedTextReceiver";
 import SharedImageReceiver from "./components/shared/SharedImageReceiver";
 import WidgetTaskSync from "./components/shared/WidgetTaskSync";
+import WidgetOpenReceiver from "./components/shared/WidgetOpenReceiver";
 import HomeZipPrompt from "./components/shared/HomeZipPrompt";
 import QuickCapturePrompt from "./components/shared/QuickCapturePrompt";
 import TaskCaptureProcessor from "./components/shared/TaskCaptureProcessor";
@@ -1032,6 +1033,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
         <SharedTextReceiver />
         <SharedImageReceiver />
         <WidgetTaskSync />
+        <WidgetOpenReceiver />
         <HomeZipPrompt user={user} theme={theme} />
         <QuickCapturePrompt />
         <TaskCaptureProcessor />
