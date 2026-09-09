@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { buildTaskParsePrompt } from '../../shared/taskParsePrompt.ts';
 import { localReminderUtc, wallClockToUtc } from '../../shared/timezoneReminders.ts';
+import { isRecurringInterval, INTERVAL_MS } from '../../shared/reminderIntervalDecision.ts';
 
 const CONNECTOR_ID = '6a04df00e62b57f635e00b0f';
 
@@ -413,17 +414,13 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
     } else {
       const validUrgency = ['low', 'medium', 'high', 'urgent'].includes(ai.urgency) ? ai.urgency : 'medium';
       const validEnergy = ['low', 'medium', 'high'].includes(ai.energy_required) ? ai.energy_required : 'medium';
-      const recurringIntervals = ['10min', '20min', '30min', '1hour', '2hours', '4hours', 'daily', 'every_other_day'];
-      const intervalMsMap = {
-        '10min': 10 * 60 * 1000, '20min': 20 * 60 * 1000, '30min': 30 * 60 * 1000,
-        '1hour': 60 * 60 * 1000, '2hours': 2 * 60 * 60 * 1000, '4hours': 4 * 60 * 60 * 1000,
-        'daily': 24 * 60 * 60 * 1000, 'every_other_day': 2 * 24 * 60 * 60 * 1000,
-      };
-
-      // Same once-vs-interval decision as AddTask: a one-time (or date-pick)
-      // result = a scheduled event → single reminder at the event time;
-      // an interval reminder = an actionable task → reminders until done.
-      const isOnce = ai.reminder_interval === 'once' || ai.needs_date_pick || !recurringIntervals.includes(ai.reminder_interval);
+      // Same once-vs-interval decision as AddTask and native capture, from the
+      // one shared rule. A Google item ALWAYS has a real start date, so the
+      // dateless "smart reminder" (null) branch can never apply here — an
+      // explicit rhythm wins, otherwise it's a single reminder at event time.
+      // Everything calendar-specific below (notes, location, multi-day span,
+      // birthdays, recurrence) stays right here on purpose.
+      const isOnce = !(!ai.needs_date_pick && isRecurringInterval(ai.reminder_interval));
       reminderInterval = isOnce ? 'once' : ai.reminder_interval;
 
       let nextReminderISO;
@@ -457,7 +454,7 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
         }
       } else {
         // Task: start interval reminders now (same as AddTask).
-        const startGap = intervalMsMap[reminderInterval] || intervalMsMap['2hours'];
+        const startGap = INTERVAL_MS[reminderInterval] || INTERVAL_MS['2hours'];
         nextReminderISO = new Date(Date.now() + startGap).toISOString();
         // Anchor the task to its calendar date (deadline) if the AI found one.
         if (ai.target_date) {

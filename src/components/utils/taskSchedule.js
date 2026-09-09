@@ -1,4 +1,9 @@
-// Shared scheduling helpers used by the task creation pipeline.
+// Shared scheduling helpers used by the in-app task creation pipeline.
+//
+// The once-vs-interval-vs-null rule below is the SAME rule the server paths use
+// via base44/shared/reminderIntervalDecision.ts (native capture + Google
+// Calendar sync). It lives twice only because this file runs in the browser and
+// that one runs in Deno — if you change the rule here, change it there too.
 
 export const INTERVAL_MS = {
   '10min': 10 * 60 * 1000,
