@@ -115,9 +115,16 @@ export function buildTaskRecord(
     urgency: parsed.urgency || "medium",
     energy_required: parsed.energy_required || "medium",
     recurrence_pattern: parsed.recurrence_pattern || "none",
-    // Only a rhythm the user actually asked for becomes a repeating reminder;
-    // everything else is a one-shot, decided here and not by the model.
-    reminder_interval: parsed.reminder_interval || "once",
+    // Mirrors the in-app pipeline: a specific date/time → 'once' (own precise
+    // flow); an explicit rhythm → that interval; anything else → null, which is
+    // what marks a task as a SMART REMINDER. Defaulting to 'once' here made
+    // every dateless capture ("buy cat litter") a one-time task with no time —
+    // and cronSmartTaskNudge skips 'once' tasks, so they were never nudged.
+    reminder_interval: parsed.target_date
+      ? "once"
+      : (parsed.reminder_interval && parsed.reminder_interval !== "once"
+          ? parsed.reminder_interval
+          : null),
     status: "active",
     day_only_task: dayOnly,
     deadline_style: parsed.deadline_style === "by" ? "by" : "on",
