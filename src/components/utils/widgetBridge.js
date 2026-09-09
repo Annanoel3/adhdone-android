@@ -37,6 +37,7 @@ export function todaysWidgetTasks(tasks) {
     )
     .slice(0, MAX_WIDGET_TASKS)
     .map((t) => ({
+      id: t.id,
       title: t.title,
       time: displayTimeFor(t),
       urgency: t.urgency || 'medium',
@@ -62,6 +63,7 @@ function upcomingWidgetTasks(tasks) {
     .map((t) => {
       const at = t.due_date || t.next_reminder;
       return {
+        id: t.id,
         title: t.title,
         // For an upcoming item the useful label is WHICH DAY, not a clock time.
         time: at
