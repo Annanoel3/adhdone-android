@@ -39,6 +39,16 @@ export default function Home() {
     checkEndOfDayReview();
   }, []);
 
+  // The layout writes the theme from the user's profile into localStorage a
+  // moment after auth resolves — which is AFTER this page first renders. Keep
+  // reading it so the dark theme isn't stuck on the initial light value.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTheme(localStorage.getItem('adhd_theme') || 'minimalist');
+    }, 200);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (location.state?.reload) {
       loadData();
