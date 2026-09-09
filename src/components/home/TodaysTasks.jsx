@@ -11,6 +11,7 @@ import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { updateTodaysSummary } from "../utils/dailySummaryHelper";
 import { isTodayTask, isUpcomingTask } from "../utils/todayTasks";
+import { pushWidgetTasks } from "../utils/widgetBridge";
 import {
   Popover,
   PopoverContent,
@@ -44,6 +45,13 @@ export default function TodaysTasks({ tasks, theme, onTaskAction, onViewDetails,
   const specialMode = localStorage.getItem('special_mode') || 'normal';
   const dateInputRefs = useRef({});
   const timeInputRefs = useRef({});
+
+  // Mirror today's list to the native home-screen widget. Runs on first render
+  // (app open) and again whenever tasks change — completing, adding, or
+  // re-dating a task updates the widget without the user reopening anything.
+  React.useEffect(() => {
+    pushWidgetTasks(tasks);
+  }, [tasks]);
 
   const getUrgencyColor = (urgency) => {
     if (theme === 'minimalist') {
