@@ -308,15 +308,15 @@ Answer plainly and practically, then stop.`;
   };
 
   return (
-    <div className={`min-h-screen p-4 md:p-8 ${
+    <div className={`h-full flex flex-col p-4 md:p-8 ${
       theme === 'spicybrains' 
         ? 'bg-gradient-to-br from-blue-300 via-green-300 to-blue-400' 
         : theme === 'dark' 
           ? 'bg-gray-900' 
           : ''
     }`}>
-      <div className="max-w-4xl mx-auto">
-        <Card className={`border-none shadow-lg mb-6 ${
+      <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col min-h-0">
+        <Card className={`border-none shadow-lg mb-6 flex-shrink-0 ${
           specialMode === 'normal' ? (
             theme === 'minimalist'
               ? 'bg-white/90 backdrop-blur-sm'
@@ -361,7 +361,8 @@ Answer plainly and practically, then stop.`;
         </Card>
 
         {messages.length === 0 ? (
-          <Card className={`border-none shadow-lg ${
+          <div className="flex-1 flex flex-col min-h-0">
+          <Card className={`border-none shadow-lg flex-shrink-0 ${
             specialMode === 'normal' ? (
               theme === 'minimalist' 
                 ? 'bg-white/90 backdrop-blur-sm' 
@@ -370,7 +371,7 @@ Answer plainly and practically, then stop.`;
                   : 'bg-gradient-to-br from-purple-50 to-pink-50'
             ) : `bg-white/70 backdrop-blur-md border border-purple-400/30 ${specialMode}-card`
           }`}>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-6">
               <div className={`p-4 rounded-lg ${
                 theme === 'minimalist'
                   ? 'bg-purple-50 border border-purple-200'
@@ -382,7 +383,21 @@ Answer plainly and practically, then stop.`;
                   🛠️ <strong>Ask about ADHD, your day, or this app.</strong> Stuck starting something, ADHD causing friction with someone, unsure how a feature works — all fair game. Just know it's an AI tool, not a person or a relationship: it won't replace friends, family, a therapist, or a doctor, and for the really heavy stuff or big life decisions a real person is still the better call.
                 </p>
               </div>
+            </CardContent>
+          </Card>
 
+          <div className="flex-1" />
+
+          <Card className={`border-none shadow-lg flex-shrink-0 mt-4 ${
+            specialMode === 'normal' ? (
+              theme === 'minimalist' 
+                ? 'bg-white/90 backdrop-blur-sm' 
+                : theme === 'dark'
+                  ? 'bg-gray-800/90 backdrop-blur-sm'
+                  : 'bg-gradient-to-br from-purple-50 to-pink-50'
+            ) : `bg-white/70 backdrop-blur-md border border-purple-400/30 ${specialMode}-card`
+          }`}>
+            <CardContent className="p-4 space-y-3">
               <div className="flex items-end gap-2">
                 <Textarea
                   value={currentInput}
@@ -442,10 +457,11 @@ Answer plainly and practically, then stop.`;
               </Button>
             </CardContent>
           </Card>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex-1 flex flex-col min-h-0 gap-4">
             {/* Messages */}
-            <Card className={`border-none shadow-lg ${
+            <Card className={`border-none shadow-lg flex-1 min-h-0 overflow-hidden ${
               specialMode === 'normal' ? (
                 theme === 'minimalist' 
                   ? 'bg-white/90 backdrop-blur-sm' 
@@ -454,7 +470,7 @@ Answer plainly and practically, then stop.`;
                     : 'bg-gradient-to-br from-purple-50 to-pink-50'
               ) : `bg-white/70 backdrop-blur-md border border-purple-400/30 ${specialMode}-card`
             }`}>
-              <CardContent className="p-6 space-y-4 max-h-[500px] overflow-y-auto">
+              <CardContent className="p-6 space-y-4 h-full overflow-y-auto">
                 {messages.map((msg, index) => (
                   <div
                     key={index}
@@ -516,7 +532,7 @@ Answer plainly and practically, then stop.`;
             </Card>
 
             {/* Input area with circular mic button */}
-            <Card className={`border-none shadow-lg ${
+            <Card className={`border-none shadow-lg flex-shrink-0 ${
               specialMode === 'normal' ? (
                 theme === 'minimalist' 
                   ? 'bg-white/90 backdrop-blur-sm' 
