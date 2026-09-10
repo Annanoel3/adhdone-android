@@ -165,9 +165,11 @@ export default function FocusModePrompt({ user, theme }) {
   // 2+ tasks that qualify for Focus Mode. After that, the Home button is the entry point.
   useEffect(() => {
     if (!user?.email) return;
+    // Already focusing (e.g. the sprint "keep going" handoff) — show it
+    // immediately. A delay here left the user staring at Home first.
     if (focusTaskId) {
-      const t = setTimeout(() => setOpen(true), 1200);
-      return () => clearTimeout(t);
+      setOpen(true);
+      return;
     }
     if (localStorage.getItem("focus_intro_seen") === "1" || user?.focus_intro_seen) return;
     if (pickableTasks.length < 2) return;

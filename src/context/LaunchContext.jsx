@@ -224,8 +224,6 @@ export function LaunchProvider({ children }) {
             const p = pomodoroRef.current;
             if (p) p.resetTimer();
             localStorage.removeItem(SPRINT_KEY);
-            setSprint(null);
-            setSprintEnded(false);
             if (sprint?.taskId) {
               try {
                 // Carry the time already spent in the sprint into Focus Mode so
@@ -233,12 +231,16 @@ export function LaunchProvider({ children }) {
                 // instead of restarting at zero.
                 const sprintStartISO = new Date(new Date(sprint.endTimeISO).getTime() - DURATION_MS).toISOString();
                 await base44.functions.invoke('setFocusMode', { action: 'enter', taskId: sprint.taskId, startedAt: sprintStartISO });
-                window.dispatchEvent(new CustomEvent('focus-mode-changed', { detail: { taskId: sprint.taskId } }));
                 navigate('/Home', { replace: true });
+                window.dispatchEvent(new CustomEvent('focus-mode-changed', { detail: { taskId: sprint.taskId } }));
               } catch (e) {
                 console.error('Failed to enter focus mode after sprint:', e);
               }
             }
+            // Only drop the sprint popup once Focus Mode is entered, so there's
+            // no blank Home screen in between.
+            setSprint(null);
+            setSprintEnded(false);
           }}
           onStop={() => {
             const p = pomodoroRef.current;
