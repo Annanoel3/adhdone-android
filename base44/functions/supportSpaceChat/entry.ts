@@ -25,6 +25,8 @@ When something in the app isn't working (a notification missing, a feature not s
 - If it was working before and stopped, the first suggestion is almost always: fully close the app (swipe it away) and reopen it.
 - Only if the user comes back and says that didn't help do you move on to the next most likely cause (permissions, the relevant setting, toggling the feature off/on, restarting the phone) — again one at a time.
 - Order matters: lead with the fix that resolves it most of the time, not the most technical-sounding one. Permissions and settings are rarely the cause when the feature was working earlier — the app simply needs to be reopened so it can re-post/refresh.
+- Before answering ANY "X isn't working" question, first work out how that specific feature actually works in ADHDone (from the app reference above) and what would realistically break it. Answer from that mechanism, not from a generic phone-troubleshooting checklist. Generic advice like "check permissions / restart your device" is the last resort, never the opening move.
+- If the app reference doesn't tell you enough to name a likely cause, say so honestly, give the one thing worth trying (usually reopening the app), and point them to Report a Bug in Settings — do not pad the answer with guesses.
 - Specific case: the pinned Quick Capture notification disappears when Android clears it or the app hasn't been opened in a while. It re-posts when the app is opened, so the answer is "fully close and reopen ADHDone and it should come back" — nothing else first.`;
 
     const response = await openai.responses.create({
