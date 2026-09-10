@@ -379,7 +379,7 @@ Answer plainly and practically, then stop.`;
                     : 'bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-200'
               }`}>
                 <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  🛠️ <strong>Ask about ADHD, your day, or this app.</strong> Stuck starting something, ADHD causing friction with someone, unsure how a feature works — all fair game. It's a tool rather than a friend, so for the really heavy stuff a real person is still the better call.
+                  🛠️ <strong>Ask about ADHD, your day, or this app.</strong> Stuck starting something, ADHD causing friction with someone, unsure how a feature works — all fair game. Just know it's an AI tool, not a person or a relationship: it won't replace friends, family, a therapist, or a doctor, and for the really heavy stuff or big life decisions a real person is still the better call.
                 </p>
               </div>
 
@@ -417,21 +417,6 @@ Answer plainly and practically, then stop.`;
                 </button>
               </div>
               
-              <div className={`p-4 rounded-lg ${
-                theme === 'minimalist' 
-                  ? 'bg-blue-50 border border-blue-100' 
-                  : theme === 'dark'
-                    ? 'bg-blue-900/20 border border-blue-800'
-                    : 'bg-purple-100 border border-purple-200'
-              }`}>
-                <div className="flex items-start gap-2">
-                  <Info className={`w-5 h-5 flex-shrink-0 mt-0.5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
-                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                    This is an AI tool, not a person and not a relationship. It won't replace friends, family, a therapist, or a doctor — and it shouldn't be relied on for emotional support or big life decisions.
-                  </p>
-                </div>
-              </div>
-
               <Button
                 onClick={handleSend}
                 disabled={!currentInput.trim() || isLoading}
