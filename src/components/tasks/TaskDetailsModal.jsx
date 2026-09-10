@@ -99,8 +99,10 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate, onDe
       setTaskNotes(task.notes || '');
       // Initialize controlled date/time inputs from task
       isInitializingRef.current = true;
-      if (task.next_reminder) {
-        const d = new Date(task.next_reminder);
+      // due_date is the fallback — parser-created tasks only have that one.
+      const dateSource = task.next_reminder || task.due_date;
+      if (dateSource) {
+        const d = new Date(dateSource);
         const rd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         const rt = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
         // Day-only tasks have no user-chosen time (we anchor them at 9 AM
@@ -120,7 +122,7 @@ export default function TaskDetailsModal({ task, isOpen, onClose, onUpdate, onDe
       // Events captured by the parser store the date on next_reminder and may
       // have no separate event_time yet — fall back to it so the pickers open
       // pre-filled with the date the event already has.
-      const eventSource = task.event_time || task.next_reminder;
+      const eventSource = task.event_time || task.next_reminder || task.due_date;
       if (eventSource) {
         const ed = new Date(eventSource);
         setEventDate(`${ed.getFullYear()}-${String(ed.getMonth()+1).padStart(2,'0')}-${String(ed.getDate()).padStart(2,'0')}`);
@@ -1305,6 +1307,11 @@ Return JSON:
   const isEvent = currentClassification === 'event';
   const currentType = getCurrentReminderType(task);
   const dueLabel = isEvent ? 'Event Date' : 'Due Date';
+  // The task's date is stored in TWO places (due_date and next_reminder)
+  // depending on which code path created it — the parser sets due_date only,
+  // while editing here sets both. Read either one so a task created with a date
+  // never shows an empty "Add due date".
+  const dueSource = task.next_reminder || task.due_date;
 
   const handleClassificationChange = async (newClass) => {
     if (!task || newClass === currentClassification) return;
@@ -1599,17 +1606,17 @@ Return JSON:
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className={`cursor-pointer hover:opacity-80 transition-opacity px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${
-                      task.next_reminder && new Date(task.next_reminder).getTime() < Date.now() && task.status !== 'completed'
+                      dueSource && new Date(dueSource).getTime() < Date.now() && task.status !== 'completed'
                         ? theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-700'
                         : 'bg-purple-500 text-white'
                     }`}>
                       <Clock className="w-3 h-3" />
-                      {task.next_reminder ? (
-                        new Date(task.next_reminder).getTime() < Date.now() && task.status !== 'completed'
-                          ? `Overdue • ${formatReminderDate(task.next_reminder)}`
+                      {dueSource ? (
+                        new Date(dueSource).getTime() < Date.now() && task.status !== 'completed'
+                          ? `Overdue • ${formatReminderDate(dueSource)}`
                           : task.day_only_task
-                            ? `Due ${formatReminderDate(task.next_reminder)}`
-                            : `Due ${isEvent ? formatEventDateRange() : formatReminderDate(task.next_reminder)} • ${formatReminderTime(task.next_reminder)}`
+                            ? `Due ${formatReminderDate(dueSource)}`
+                            : `Due ${isEvent ? formatEventDateRange() : formatReminderDate(dueSource)} • ${formatReminderTime(dueSource)}`
                       ) : (
                         'Add due date'
                       )}
@@ -1726,10 +1733,10 @@ Return JSON:
                 )
               )}
 
-              {/* Start date — only available when the task has a future due
-                   date, so the user can say "due Friday, work on it all week."
-                   Default is no start date. */}
-              {task.due_date && new Date(task.due_date).getTime() > Date.now() && !isEvent && (
+              {/* Start date — a multi-day span only makes sense for an event
+                   (a trip, a conference). A one-time task just has a due date,
+                   so showing "Add Start Date" there is noise. */}
+              {isEvent && dueSource && new Date(dueSource).getTime() > Date.now() && (
                 task.start_date ? (
                   <Popover>
                     <PopoverTrigger asChild>
@@ -1781,9 +1788,9 @@ Return JSON:
                 )
               )}
 
-              {/* Location — where this happens. Available for anything that
-                   can have a place: events and regular tasks/errands. */}
-              {currentClassification !== 'birthday' && (
+              {/* Location — only events happen at a place. Regular tasks and
+                   chores don't need one, so it stays off their card. */}
+              {isEvent && (
                 <LocationField
                   task={task}
                   theme={theme}
