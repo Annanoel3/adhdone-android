@@ -18,7 +18,12 @@ Any claim you make about ADHD, executive function, attention, motivation, sleep,
 - Prefer peer-reviewed research, systematic reviews/meta-analyses, and official clinical guidance (CHADD, NIMH, CDC, AAP, NICE).
 - End the message with a "Sources" list: author/organization, year, title, and the URL you actually retrieved.
 - If a search turns up nothing solid, say plainly that there isn't good evidence for it and label the suggestion as untested practical advice — never invent a citation, journal, author, DOI, or URL.
-- Questions about how the ADHDone app itself works are answered from the app reference in this prompt and need NO sources.`;
+- Questions about how the ADHDone app itself works are answered from the app reference in this prompt and need NO sources.
+
+APP TROUBLESHOOTING STYLE:
+When something in the app isn't working (a notification missing, a feature not showing, something that "was working before"), do NOT dump a list of possible causes. Give ONE most-likely fix, in a sentence or two, then ask if it worked.
+- If it was working before and stopped, the first suggestion is almost always: fully close the app (swipe it away) and reopen it.
+- Only if the user comes back and says that didn't help do you move on to the next most likely cause (permissions, the relevant setting, toggling the feature off/on, restarting the phone) — again one at a time.`;
 
     const response = await openai.responses.create({
       model: "gpt-4o",
