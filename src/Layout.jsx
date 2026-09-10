@@ -67,6 +67,7 @@ import WidgetOpenReceiver from "./components/shared/WidgetOpenReceiver";
 import HomeZipPrompt from "./components/shared/HomeZipPrompt";
 import QuickCapturePrompt from "./components/shared/QuickCapturePrompt";
 import PageIntroTour from "./components/onboarding/PageIntroTour";
+import WelcomeDialog from "./components/onboarding/WelcomeDialog";
 import TaskCaptureProcessor from "./components/shared/TaskCaptureProcessor";
 import { base44 } from "@/api/base44Client";
 import {
@@ -1039,6 +1040,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
         <HomeZipPrompt user={user} theme={theme} />
         <QuickCapturePrompt />
         <TaskCaptureProcessor />
+        <WelcomeDialog />
         <PageIntroTour currentPageName={currentPageName} />
 
         <AppGuideModal

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { ONBOARDING_STEPS, waitForStep } from '@/components/onboarding/onboardingGate';
 
 // Persist the OneSignal subscription/player ID to the user record so the
 // backend can deliver pushes by include_player_ids (per-device, reliable).
@@ -105,6 +106,9 @@ export default function OneSignalInit({ user }) {
 
         if (externalId) {
           console.log('[OneSignal] ✅ Calling NotifyBridge.login() with:', externalId);
+          // On a fresh install, don't throw the OS permission dialog at the user
+          // before they've read the welcome note and seen the Home tour.
+          await waitForStep(ONBOARDING_STEPS.homeTour);
           await NotifyBridge.requestPermission();
           const loginResult = await NotifyBridge.login({ externalId: externalId });
           // Native plugin returns the player ID synchronously — save it.

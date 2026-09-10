@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { PAGE_TOURS } from "./pageIntros";
 import TourStepCard from "./TourStepCard";
 import OtherWaysStepCard from "./OtherWaysStepCard";
+import { ONBOARDING_STEPS, markStepDone, waitForStep } from "./onboardingGate";
 
 // Bumping this replays every page tour once for everyone (existing users
 // included), then it goes back to being one-time per page.
@@ -18,19 +19,24 @@ export default function PageIntroTour({ currentPageName }) {
     const tour = PAGE_TOURS[currentPageName];
     if (!tour) return;
     if (localStorage.getItem(seenKey(currentPageName))) return;
-    // On the very first open, the notification permission prompt and the pinned
-    // capture prompt come first — let those finish before the tour starts.
-    const delay = currentPageName === "Home" ? 14000 : 1200;
-    const t = setTimeout(() => {
-      setIndex(0);
-      setSteps(tour);
-    }, delay);
-    return () => clearTimeout(t);
+    // Tours come AFTER the welcome note, and before any permission prompts.
+    let cancelled = false;
+    let t = null;
+    waitForStep(ONBOARDING_STEPS.welcome).then(() => {
+      if (cancelled) return;
+      t = setTimeout(() => {
+        setIndex(0);
+        setSteps(tour);
+      }, 1000);
+    });
+    return () => { cancelled = true; if (t) clearTimeout(t); };
   }, [currentPageName]);
 
   const finish = () => {
     localStorage.setItem(seenKey(currentPageName), "1");
     setSteps(null);
+    // Finishing the Home tour releases the notification-permission prompt.
+    if (currentPageName === "Home") markStepDone(ONBOARDING_STEPS.homeTour);
   };
 
   if (!steps || !steps[index]) return null;

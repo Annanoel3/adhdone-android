@@ -8,6 +8,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Zap } from 'lucide-react';
+import { ONBOARDING_STEPS, waitForStep } from '@/components/onboarding/onboardingGate';
 
 const SEEN_KEY = 'quick_capture_prompt_seen';
 
@@ -41,6 +42,9 @@ export default function QuickCapturePrompt() {
       const { ShareBridge } = getPlugins();
       if (ShareBridge?.setQuickCaptureEnabled) {
         clearInterval(poll);
+        // Last in the first-run sequence: welcome → tour → notification
+        // permission → this. Small gap so it doesn't stack on the OS dialog.
+        waitForStep(ONBOARDING_STEPS.homeTour).then(() => {
         showTimer = setTimeout(() => {
           if (cancelled) return;
           ShareBridge.isQuickCaptureEnabled?.()
@@ -50,7 +54,8 @@ export default function QuickCapturePrompt() {
               else setOpen(true);
             })
             .catch(() => { if (!cancelled) setOpen(true); });
-        }, 10000);
+        }, 6000);
+        });
       } else if (Date.now() - start > 15000) {
         // Not a native build (or no bridge) — nothing to offer.
         clearInterval(poll);
