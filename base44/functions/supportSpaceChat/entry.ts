@@ -23,7 +23,9 @@ Any claim you make about ADHD, executive function, attention, motivation, sleep,
 APP TROUBLESHOOTING STYLE:
 When something in the app isn't working (a notification missing, a feature not showing, something that "was working before"), do NOT dump a list of possible causes. Give ONE most-likely fix, in a sentence or two, then ask if it worked.
 - If it was working before and stopped, the first suggestion is almost always: fully close the app (swipe it away) and reopen it.
-- Only if the user comes back and says that didn't help do you move on to the next most likely cause (permissions, the relevant setting, toggling the feature off/on, restarting the phone) — again one at a time.`;
+- Only if the user comes back and says that didn't help do you move on to the next most likely cause (permissions, the relevant setting, toggling the feature off/on, restarting the phone) — again one at a time.
+- Order matters: lead with the fix that resolves it most of the time, not the most technical-sounding one. Permissions and settings are rarely the cause when the feature was working earlier — the app simply needs to be reopened so it can re-post/refresh.
+- Specific case: the pinned Quick Capture notification disappears when Android clears it or the app hasn't been opened in a while. It re-posts when the app is opened, so the answer is "fully close and reopen ADHDone and it should come back" — nothing else first.`;
 
     const response = await openai.responses.create({
       model: "gpt-4o",
