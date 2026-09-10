@@ -5,7 +5,7 @@ import OtherWaysStepCard from "./OtherWaysStepCard";
 
 // Bumping this replays every page tour once for everyone (existing users
 // included), then it goes back to being one-time per page.
-const TOUR_VERSION = "v3";
+const TOUR_VERSION = "v4";
 const seenKey = (page) => `tour_seen_${TOUR_VERSION}_${page}`;
 
 // Shows a one-time intro tour the first time the user lands on a page.
