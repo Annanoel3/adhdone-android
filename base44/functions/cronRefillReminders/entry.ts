@@ -379,10 +379,14 @@ Deno.serve(async (req) => {
       // 2. Legacy/orphaned birthday with no plan at all — rebuild it
       schedule = buildBirthdaySchedule(task, nextReminderIso, ownerName);
       dirty = true;
-    } else if (isOwn && schedule.some((e: any) => e.kind !== 'own_day_of')) {
+    } else if (isOwn && !schedule.every((e: any) => String(e.notification_title || '').includes('Happy Birthday'))) {
       // Own birthday that was previously planned as a generic event ("night
       // before" / "1 hour before" with no name) — replace with the greeting.
       // The reconcile step below cancels the old bookings.
+      // Detected by the message itself, NOT by `kind`: kind wasn't persisted on
+      // the entity, so it came back undefined on every run and this branch
+      // rebuilt + re-booked + cancelled the same reminder once per cron run,
+      // filling OneSignal with hundreds of cancelled notifications.
       schedule = buildBirthdaySchedule(task, nextReminderIso, ownerName);
       dirty = true;
     }

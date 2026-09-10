@@ -120,6 +120,14 @@
             "type": "string",
             "description": "Human-readable label like '1 day before', 'morning of', '1 hour before'"
           },
+          "kind": {
+            "type": "string",
+            "description": "Machine-readable reminder kind (week_before, day_before, day_of, own_day_of, night_before, hour_before, \u2026). MUST stay in the schema: the refill cron branches on it, and when it wasn't persisted the cron treated every saved entry as mis-planned and re-booked + cancelled it on every run."
+          },
+          "scheduled": {
+            "type": "boolean",
+            "description": "True once this entry has a live OneSignal booking. Planned-only entries (too far out for OneSignal) are false and carry a 'planned_\u2026' notification_id until the refill cron promotes them."
+          },
           "notification_title": {
             "type": "string",
             "description": "LLM-generated notification title"
