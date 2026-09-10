@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { PAGE_TOURS } from "./pageIntros";
 import TourStepCard from "./TourStepCard";
+import OtherWaysStepCard from "./OtherWaysStepCard";
 
 // Shows a one-time intro tour the first time the user lands on a page.
 export default function PageIntroTour({ currentPageName }) {
@@ -29,10 +30,24 @@ export default function PageIntroTour({ currentPageName }) {
 
   if (!steps || !steps[index]) return null;
   const isLast = index === steps.length - 1;
+  const step = steps[index];
+  const next = () => (isLast ? finish() : setIndex((i) => i + 1));
+
+  if (step.variant === "otherWays") {
+    return (
+      <OtherWaysStepCard
+        isLast={isLast}
+        stepNumber={index + 1}
+        totalSteps={steps.length}
+        onNext={next}
+        onSkip={finish}
+      />
+    );
+  }
 
   return (
     <TourStepCard
-      step={steps[index]}
+      step={step}
       isLast={isLast}
       stepNumber={index + 1}
       totalSteps={steps.length}

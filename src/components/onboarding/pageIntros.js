@@ -12,6 +12,10 @@ export const PAGE_TOURS = {
       body: "Add any task(s) or idea(s) simply by talking or typing. Dump it all in — the app sorts out what's a task and what's just an idea.",
     },
     {
+      variant: "otherWays",
+      title: "Other ways to add stuff 📥",
+    },
+    {
       selector: '[data-tour="launch"]',
       title: "Launch 🚀",
       body: "Stuck? Launch gives you a push. A Sprint is a short timed burst on one thing, and the Launchpad walks you through picking something and actually starting it.",
