@@ -5,6 +5,7 @@
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import OpenAI from 'npm:openai';
+import { getTravelLead } from '../../shared/travelLead.ts';
 
 const openai = new OpenAI({
   apiKey: Deno.env.get('OPENAI_API_KEY')
@@ -23,20 +24,28 @@ const openai = new OpenAI({
 // isn't an event falls through to day-only handling and smart nudges, which is
 // where non-event reminders were always meant to live.
 
-function getEventSchedule() {
+function getEventSchedule(lead) {
   return [
     { days_before: 1, hour: 20, minute: 0, relative_minutes_before: null, label: 'night before' },
-    { days_before: null, hour: null, minute: null, relative_minutes_before: 60, label: '1 hour before' },
+    { days_before: null, hour: null, minute: null, relative_minutes_before: lead ? lead.leadMinutes : 60, label: lead ? 'leave now' : '1 hour before' },
     { days_before: null, hour: null, minute: null, relative_minutes_before: 0, label: 'at the time' },
   ];
 }
 
-function getEventNotificationText(label, title) {
+function getEventNotificationText(label, title, lead) {
   const t = title.length > 40 ? title.slice(0, 37) + '...' : title;
 
   const templates = {
     'night before': { title: `🎉 ${t}`, body: `Heads up! Your "${t}" is tomorrow. Don't forget to prep! ✨` },
-    '1 hour before': { title: `⏰ ${t}`, body: `Almost time! Your "${t}" is in about an hour. Time to head out! 🚗` },
+    // Without a measured drive time we can't claim it's time to leave — that's
+    // the whole reason a blanket "head out now" an hour ahead was wrong.
+    '1 hour before': { title: `⏰ ${t}`, body: `Almost time! Your "${t}" is in about an hour. Start wrapping up ✨` },
+    'leave now': {
+      title: `🚗 Time to leave — ${t}`,
+      body: lead
+        ? `"${t}" is about a ${lead.driveMinutes} min drive, so head out now to get there on time. 🚗`
+        : `Time to head out for "${t}". 🚗`,
+    },
     'at the time': { title: `🔔 ${t}`, body: `It's time — "${t}". You've got this! 💪` },
   };
 
@@ -56,7 +65,15 @@ export default async function(req) {
     }
 
     const bodyText = await req.text();
-    const { title, scheduledDateISO, urgency, dayOnly, classification, deadlineStyle, timezone } = JSON.parse(bodyText);
+    const { title, scheduledDateISO, urgency, dayOnly, classification, deadlineStyle, timezone, location, homeZip } = JSON.parse(bodyText);
+    // A task with a real place attached gets a travel-aware "leave now" instead
+    // of a blanket hour: measured drive time from the user's home zip + cushion.
+    const lead = dayOnly
+      ? null
+      : await getTravelLead(location || '', homeZip || user?.home_zipcode || '');
+    if (lead) {
+      console.log(`[generateReminderSchedule] Travel lead for "${title}" → ${lead.leadMinutes} min (${lead.driveMinutes} min drive)`);
+    }
     // The server runs in UTC. Without the user's zone, a 2:21 PM Chicago task
     // was described to the LLM as "7:21 PM", so its absolute clock-time
     // reminders landed hours after the task instead of before it.
@@ -98,9 +115,9 @@ export default async function(req) {
     // sync), never by words in the title. Keeping this deterministic also
     // prevents "2 months before" reminders for far-future events.
     if (classification === 'event') {
-      const schedule = getEventSchedule();
+      const schedule = getEventSchedule(lead);
       const reminders = schedule.map(r => {
-        const text = getEventNotificationText(r.label, title);
+        const text = getEventNotificationText(r.label, title, lead);
         return {
           days_before: r.days_before,
           hour: r.hour,
@@ -253,6 +270,9 @@ All with days_before: 0 because it's today.
 RULES:
 - For clock-time reminders (morning, afternoon, evening, X days before at Y AM): use ABSOLUTE
 - For "N minutes/hours before" reminders: use RELATIVE with just the number of minutes
+${lead
+  ? `- TRAVEL: this task happens at a place that is a measured ${lead.driveMinutes} minute drive from the user's home. The "leave now" reminder is ${lead.leadMinutes} minutes before — use exactly that number, and do NOT add any other "time to head out" reminder.`
+  : `- TRAVEL: no location is known for this task, so NEVER tell the user to leave or head out. Say "coming up" / "start wrapping up" instead.`}
 - Only include reminders that would fire AFTER the current time (${nowStr})
 
 NOTIFICATION TEXT:
@@ -357,15 +377,21 @@ Examples:
         console.log(`[generateReminderSchedule] Dropped ${before - reminders.length} reminder(s) scheduled after the task time`);
       }
 
-      const hasOneHourBefore = reminders.some(r => r.relative_minutes_before === 60);
+      // The lead reminder: drive time + cushion when we know where this happens,
+      // otherwise the generic one-hour heads-up (which must NOT tell the user to
+      // leave — we have no idea how far away it is).
+      const leadMinutes = lead ? lead.leadMinutes : 60;
+      const hasLead = reminders.some(r => r.relative_minutes_before === leadMinutes);
       const hasAtTime = reminders.some(r => r.relative_minutes_before === 0);
 
-      if (!hasOneHourBefore && new Date(scheduled.getTime() - 60 * 60000) > now) {
+      if (!hasLead && new Date(scheduled.getTime() - leadMinutes * 60000) > now) {
         reminders.push({
-          days_before: null, hour: null, minute: null, relative_minutes_before: 60,
-          label: '1 hour before',
-          notification_title: `⏰ ${t}`,
-          notification_body: `Coming up in about an hour: "${t}". Time to start wrapping up! ✨`,
+          days_before: null, hour: null, minute: null, relative_minutes_before: leadMinutes,
+          label: lead ? 'leave now' : '1 hour before',
+          notification_title: lead ? `🚗 Time to leave — ${t}` : `⏰ ${t}`,
+          notification_body: lead
+            ? `"${t}" is about a ${lead.driveMinutes} min drive, so head out now to get there on time. 🚗`
+            : `Coming up in about an hour: "${t}". Time to start wrapping up! ✨`,
         });
       }
       if (!hasAtTime && scheduled > now) {

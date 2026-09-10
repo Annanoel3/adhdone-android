@@ -524,6 +524,11 @@ async function syncCalendarAccount(base44, user, accessToken, calendarEmail) {
           scheduledDateISO: createdTask.next_reminder,
           urgency: createdTask.urgency,
           classification: createdTask.classification || 'event',
+          // Lets the "leave now" reminder be based on real drive time from home
+          // instead of a blanket hour before.
+          location: (createdTask as any).location || (taskRecord as any).location || '',
+          homeZip: (user as any)?.home_zipcode || '',
+          timezone: (user as any)?.timezone || undefined,
         });
         const scheduleData = scheduleRes?.data || scheduleRes || {};
         const rawReminders = scheduleData.reminders || [];

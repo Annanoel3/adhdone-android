@@ -8,9 +8,11 @@ import { scheduleReminder, resolveSendTime } from './reminderScheduler';
 import { base44 } from '@/api/base44Client';
 
 // ── localStorage cache (24h TTL) ─────────────────────────────────────────────
-function getCachedSchedule(title, urgency) {
+function getCachedSchedule(title, urgency, location) {
   try {
-    const key = `adhd_reminder_cache_${title.toLowerCase().trim()}_${urgency || 'medium'}`;
+    // Location is part of the key: the lead reminder is drive-time dependent,
+    // so a schedule built for one place must never be reused for another.
+    const key = `adhd_reminder_cache_${title.toLowerCase().trim()}_${urgency || 'medium'}_${(location || '').toLowerCase().trim()}`;
     const cached = localStorage.getItem(key);
     if (!cached) return null;
     const { data, timestamp } = JSON.parse(cached);
@@ -28,7 +30,7 @@ function getCachedSchedule(title, urgency) {
   }
 }
 
-function setCachedSchedule(title, urgency, data) {
+function setCachedSchedule(title, urgency, data, location) {
   try {
     // Only cache purely-relative schedules. Absolute clock-time reminders
     // (days_before/hour/minute) are tied to the original event time and must
@@ -37,15 +39,15 @@ function setCachedSchedule(title, urgency, data) {
       (r) => r.days_before != null || r.hour != null || r.minute != null
     );
     if (hasAbsolute) return;
-    const key = `adhd_reminder_cache_${title.toLowerCase().trim()}_${urgency || 'medium'}`;
+    const key = `adhd_reminder_cache_${title.toLowerCase().trim()}_${urgency || 'medium'}_${(location || '').toLowerCase().trim()}`;
     localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
   } catch {}
 }
 
 // ── Core: get reminder times (minutes_before + label) from LLM or cache ──────
-async function fetchReminderSchedule(title, scheduledDateISO, urgency, dayOnly, classification, deadlineStyle) {
+async function fetchReminderSchedule(title, scheduledDateISO, urgency, dayOnly, classification, deadlineStyle, location) {
   // Day-only schedules have absolute clock times — never use the cache.
-  let reminders = dayOnly ? null : getCachedSchedule(title, urgency);
+  let reminders = dayOnly ? null : getCachedSchedule(title, urgency, location);
 
   if (!reminders) {
     console.log(`[multiReminderScheduler] No cache hit for "${title}" (priority: ${urgency || 'medium'}) — calling LLM`);
@@ -56,6 +58,7 @@ async function fetchReminderSchedule(title, scheduledDateISO, urgency, dayOnly, 
       dayOnly,
       classification,
       deadlineStyle,
+      location,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
 
@@ -63,7 +66,7 @@ async function fetchReminderSchedule(title, scheduledDateISO, urgency, dayOnly, 
     reminders = data.reminders || [];
 
     if (reminders.length > 0) {
-      setCachedSchedule(title, urgency, reminders);
+      setCachedSchedule(title, urgency, reminders, location);
     }
   } else {
     console.log(`[multiReminderScheduler] Cache hit for "${title}" (priority: ${urgency || 'medium'}) — ${reminders.length} reminders`);
@@ -145,9 +148,20 @@ export async function scheduleMultiReminders({
   dayOnly,
   classification,
   deadlineStyle,
+  location,
 }) {
   try {
-    const reminders = await fetchReminderSchedule(title, scheduledDateISO, urgency, dayOnly, classification, deadlineStyle);
+    // Every caller passes taskId, so the location is looked up here rather than
+    // threaded through a dozen call sites — the backend needs it to turn the
+    // lead reminder into a real "leave now" based on drive time.
+    let taskLocation = location;
+    if (taskLocation === undefined && taskId) {
+      try {
+        const task = await base44.entities.Task.get(taskId);
+        taskLocation = task?.location || '';
+      } catch { taskLocation = ''; }
+    }
+    const reminders = await fetchReminderSchedule(title, scheduledDateISO, urgency, dayOnly, classification, deadlineStyle, taskLocation);
     if (!reminders || reminders.length === 0) return null;
 
     // Safety net: a task set for a specific clock time ALWAYS gets a reminder at

@@ -146,6 +146,18 @@ export async function scheduleTaskReminders(
 ) {
   if (!task.next_reminder) return { scheduled: 0 };
 
+  // Service-role calls have no end-user session, so the home zip the travel-aware
+  // "leave now" reminder needs has to be looked up and passed explicitly.
+  let homeZip = "";
+  if (task.location) {
+    try {
+      const users = await base44.asServiceRole.entities.User.filter({ email });
+      homeZip = users?.[0]?.home_zipcode || "";
+    } catch (e) {
+      console.error("[captureToTasks] home zip lookup failed:", e);
+    }
+  }
+
   const plan = await callFunction(base44, "generateReminderSchedule", {
     title: task.title,
     scheduledDateISO: task.next_reminder,
@@ -153,6 +165,8 @@ export async function scheduleTaskReminders(
     dayOnly: task.day_only_task,
     classification: task.classification,
     deadlineStyle: task.deadline_style,
+    location: task.location || '',
+    homeZip,
     timezone: tz,
   });
 
