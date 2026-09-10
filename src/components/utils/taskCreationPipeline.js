@@ -40,6 +40,17 @@ function propagateDateWords(originalInput, splitTasks) {
   });
 }
 
+// Tasks that involve leaving the house are the only reason we'd need a home zip
+// code (grouping nearby errands into one trip), so the zip prompt waits for one.
+const ERRAND_WORDS = /\b(errand|store|grocer|groceries|shop|shopping|pick up|pickup|drop off|dropoff|post office|pharmacy|bank|gas station|target|walmart|costco|mall|dry clean|library|appointment|dentist|doctor|haircut|car wash|oil change|return)\b/i;
+
+function maybeAskForHomeZip(text, location) {
+  try {
+    if (!location && !ERRAND_WORDS.test(text || '')) return;
+    window.dispatchEvent(new CustomEvent('errand-task-created'));
+  } catch (e) {}
+}
+
 export async function detectMultipleTasks(inputText) {
   const multiTaskPrompt = `Analyze this input and determine if it contains multiple separate tasks:
 
@@ -212,6 +223,8 @@ Return JSON:
         status: 'active',
         notification_recipient_email: currentUser.email
       });
+
+      maybeAskForHomeZip(`${subtaskCheck.main_task} ${inputText}`, mainTaskParsed.location);
 
       // Subtasks IN ORDER — no notifications on subtasks, only the parent
       for (let si = 0; si < subtaskCheck.subtasks.length; si++) {
@@ -510,6 +523,8 @@ Return JSON:
       status: 'active',
       notification_recipient_email: currentUser.email
     });
+
+    maybeAskForHomeZip(`${createdTask.title} ${inputText}`, parsed.location);
 
     // Never schedule a reminder in the past or immediate
     if (nextReminder && nextReminder <= new Date(now.getTime() + 2 * 60 * 1000)) {

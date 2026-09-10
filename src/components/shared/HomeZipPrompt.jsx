@@ -14,8 +14,10 @@ import { base44 } from '@/api/base44Client';
 
 const SEEN_KEY = 'home_zip_prompt_seen';
 
-// One-time, skippable ask for a home zip code. Shown once ever — if the user
-// skips it, they're told exactly where to add it later (Settings → Home Zip Code).
+// One-time, skippable ask for a home zip code. Only asked the first time the
+// user creates something that actually leaves the house (an errand / a task
+// with a location) — that's the moment the zip is useful, so the ask makes
+// sense instead of arriving out of nowhere on launch.
 export default function HomeZipPrompt({ user, theme }) {
   const [open, setOpen] = useState(false);
   const [zip, setZip] = useState('');
@@ -30,8 +32,9 @@ export default function HomeZipPrompt({ user, theme }) {
       localStorage.setItem(SEEN_KEY, 'true');
       return;
     }
-    const t = setTimeout(() => setOpen(true), 2500);
-    return () => clearTimeout(t);
+    const onErrand = () => setOpen(true);
+    window.addEventListener('errand-task-created', onErrand);
+    return () => window.removeEventListener('errand-task-created', onErrand);
   }, [user]);
 
   const dismiss = () => {
