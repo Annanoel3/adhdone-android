@@ -40,7 +40,7 @@ export const PAGE_TOURS = {
       body: "All of your ideas end up here! When you create a task, the app intelligently determines whether you're adding an idea or a task. Missing a task? Check here!",
     },
   ],
-  ScheduledTexts: [
+  Birthdays: [
     {
       title: "Birthdays 🎂",
       body: "Never forget to text your loved ones on their birthday again! Get help drafting and scheduling texts so you get the most out of birthdays.",

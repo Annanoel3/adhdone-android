@@ -29,6 +29,7 @@ import {
   HelpCircle,
   Shield,
   ArrowLeft,
+  Cake,
 } from "lucide-react";
 import {
   Sidebar,
@@ -442,9 +443,9 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           icon: Lightbulb,
         },
         {
-          title: "Scheduled Texts",
-          url: createPageUrl("ScheduledTexts"),
-          icon: MessageCircle,
+          title: "Birthdays",
+          url: createPageUrl("Birthdays"),
+          icon: Cake,
         },
       ],
     },

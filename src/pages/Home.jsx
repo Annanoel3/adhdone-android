@@ -7,7 +7,6 @@ import QuickActions from "../components/home/QuickActions";
 import TodaysTasks from "../components/home/TodaysTasks";
 import PendingTaskCards from "../components/home/PendingTaskCards";
 import EndOfDayReview from "../components/home/EndOfDayReview";
-import UpcomingBirthdayCard from "../components/home/UpcomingBirthdayCard";
 import BirthdayTextDialog from "../components/birthdays/BirthdayTextDialog";
 import MotivationCoach from "../components/home/MotivationCoach";
 import TaskDetailsModal from "../components/tasks/TaskDetailsModal";
@@ -245,13 +244,6 @@ export default function Home() {
                 />
               </div>
 
-              <UpcomingBirthdayCard
-                tasks={tasks}
-                user={user}
-                theme={theme}
-                specialMode={specialMode}
-                onRefresh={loadTasks}
-              />
             </div>
             
             <div className="min-w-0">

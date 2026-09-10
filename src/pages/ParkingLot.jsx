@@ -757,15 +757,15 @@ Return ONLY the category name, nothing else.`;
             }`}>
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-2 mb-2">
                       <Lightbulb className={`w-5 h-5 ${
                         specialMode !== 'normal' ? '' :
                         theme === 'minimalist' ? 'text-purple-600' :
                         theme === 'dark' ? 'text-purple-400' :
                         'text-purple-600'
                       }`} />
-                      <h3 className={`font-semibold text-lg whitespace-pre-wrap ${
+                      <h3 className={`font-semibold text-lg whitespace-pre-wrap break-words min-w-0 flex-1 ${
                         specialMode !== 'normal' ? `${specialMode}-title` :
                         theme === 'dark' ? 'text-gray-100' : 'text-gray-900'
                       }`}>
@@ -1038,7 +1038,25 @@ Return ONLY the category name, nothing else.`;
                 })()}
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t">
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t flex-wrap">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setNotesDialogIdea(group.parent)}
+                    className="flex items-center gap-1"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Details
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(group.parent.id)}
+                    className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </Button>
                   <label>
                     <input
                       type="file"
