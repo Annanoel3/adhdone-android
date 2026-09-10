@@ -17,10 +17,19 @@ export default function TourStepCard({ step, isLast, stepNumber, totalSteps, onN
   }, [step]);
 
   const spaceBelow = rect ? window.innerHeight - rect.bottom : 0;
+  // When the card sits above the highlighted element it can get pushed under
+  // the status bar and clipped — clamp it so it always keeps room to render.
+  const SAFE_TOP = 72;
+  const MIN_CARD = 190;
   const cardStyle = rect
     ? spaceBelow > 240
-      ? { top: rect.bottom + 16 }
-      : { bottom: window.innerHeight - rect.top + 16 }
+      ? { top: Math.max(SAFE_TOP, rect.bottom + 16) }
+      : {
+          bottom: Math.min(
+            window.innerHeight - rect.top + 16,
+            Math.max(0, window.innerHeight - SAFE_TOP - MIN_CARD)
+          ),
+        }
     : { top: "50%", transform: "translateY(-50%)" };
 
   return (
