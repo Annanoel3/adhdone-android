@@ -38,7 +38,16 @@ export default function MotivationCoach({ theme }) {
       const allTasks = await base44.entities.Task.list('-updated_date', 500);
       const completedToday = allTasks.filter(isCompletedToday);
       
-      const activeTasks = allTasks.filter(t => t.status === 'active' && !t.parent_task_id);
+      // Only real, currently-relevant tasks: no subtasks, no birthdays, no
+      // imported calendar events, nothing on the Back Burner.
+      const activeTasks = allTasks.filter(t =>
+        t.status === 'active' &&
+        !t.parent_task_id &&
+        !t.silenced &&
+        t.classification !== 'birthday' &&
+        t.classification !== 'event' &&
+        !t.birthday_person
+      );
       
       const summaries = await base44.entities.DailySummary.list('-date', 7);
       const recentStreak = summaries[0]?.streak_days || 0;
