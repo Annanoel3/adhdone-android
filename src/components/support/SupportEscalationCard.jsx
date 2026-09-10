@@ -25,7 +25,7 @@ export default function SupportEscalationCard({ message, transcript, theme, onDi
         theme === 'dark' ? 'bg-green-900/30 text-green-200' : 'bg-green-50 text-green-800'
       }`}>
         <Check className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <p className="text-sm">Sent to customer support. They'll follow up by email.</p>
+        <p className="text-sm">Sent to customer support — replies are usually quick, so keep an eye on your email.</p>
       </div>
     );
   }
@@ -41,7 +41,7 @@ export default function SupportEscalationCard({ message, transcript, theme, onDi
             Would you like to send this to customer support?
           </p>
           <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-blue-200' : 'text-blue-700'}`}>
-            Your message, this conversation, and your name and email would be emailed to the developer. Nothing is sent unless you tap Send.
+            Your message, this conversation, and your name and email would be emailed to the developer. Nothing is sent unless you tap Send. Support replies are usually fast.
           </p>
         </div>
       </div>
