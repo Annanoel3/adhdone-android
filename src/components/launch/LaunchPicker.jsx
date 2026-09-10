@@ -10,6 +10,7 @@ import { Rocket } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isTodayTask } from "@/components/utils/todayTasks";
 import LaunchButtons from "./LaunchButtons";
+import LaunchSoundPicker from "./LaunchSoundPicker";
 
 // Home-level entry point for Launchpad / 5-min Sprint. Lets the user pick any
 // today-active task and fire off a launch without digging into a task card.
@@ -95,6 +96,7 @@ export default function LaunchPicker({ open, onOpenChange, theme }) {
             ))
           )}
         </div>
+        <LaunchSoundPicker theme={theme} />
       </DialogContent>
     </Dialog>
   );

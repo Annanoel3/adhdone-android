@@ -152,6 +152,29 @@ export function LaunchProvider({ children }) {
     setSprint(session);
   }, []);
 
+  // A finished sprint is real timed work — log it so Insights learns how long
+  // this task actually takes (Focus Mode logs its own sessions separately, so
+  // the "keep going" path is deliberately excluded to avoid double-counting).
+  const logSprintSession = useCallback(async (sp) => {
+    if (!sp?.title) return;
+    const startMs = new Date(sp.endTimeISO).getTime() - DURATION_MS;
+    const seconds = Math.round((Date.now() - startMs) / 1000);
+    if (seconds < 60) return;
+    try {
+      const user = await base44.auth.me();
+      await base44.entities.FocusSessionLog.create({
+        task_id: sp.taskId,
+        task_title: sp.title,
+        duration_seconds: seconds,
+        started_at: new Date(startMs).toISOString(),
+        completed_at: new Date().toISOString(),
+        user_email: user.email,
+      });
+    } catch (e) {
+      console.error('Failed to log sprint session:', e);
+    }
+  }, []);
+
   const cancelLaunchpad = useCallback(() => {
     if (launchpad?.notifId) cancelScheduledReminder(launchpad.notifId).catch(() => {});
     localStorage.removeItem(LAUNCHPAD_KEY);
@@ -161,6 +184,7 @@ export function LaunchProvider({ children }) {
 
   const cancelSprint = useCallback(() => {
     stopAlertLoop();
+    if (sprintEnded) logSprintSession(sprint);
     const p = pomodoroRef.current;
     if (p) p.resetTimer(); // stop the sprint's pomodoro so the mini bar disappears
     if (sprint?.notifId) cancelScheduledReminder(sprint.notifId).catch(() => {});
@@ -168,7 +192,7 @@ export function LaunchProvider({ children }) {
     setSprintMinimized(false);
     setSprint(null);
     setSprintEnded(false);
-  }, [sprint]);
+  }, [sprint, sprintEnded, logSprintSession]);
 
   return (
     <LaunchContext.Provider
@@ -246,6 +270,7 @@ export function LaunchProvider({ children }) {
           }}
           onStop={() => {
             stopAlertLoop();
+            logSprintSession(sprint);
             const p = pomodoroRef.current;
             if (p) p.resetTimer();
             localStorage.removeItem(SPRINT_KEY);

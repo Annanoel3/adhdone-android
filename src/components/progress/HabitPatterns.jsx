@@ -4,7 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { Repeat, Timer } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
-const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+// Titles for the same habit drift ("Do dishes" vs "Do the dishes" vs "Put up the
+// laundry"), which used to split them into separate habits and orphan their
+// timed sessions. Drop filler words so those all land on the same key.
+const FILLER = new Set(['the', 'a', 'an', 'my', 'some', 'do', 'go', 'get', 'take', 'put', 'up', 'out', 'and', 'to', 'of']);
+const norm = (s) =>
+  (s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, '')
+    .split(/\s+/)
+    .filter((w) => w && !FILLER.has(w))
+    .join(' ')
+    .trim();
 
 const fmtDuration = (secs) => {
   const m = Math.round(secs / 60);
@@ -23,6 +34,15 @@ const fmtFrequency = (count, spanDays) => {
   const perMonth = perWeek * 4.3;
   if (perMonth >= 1.5) return `about ${Math.round(perMonth)}x a month`;
   return 'about once a month';
+};
+
+// Typical = the MIDDLE session, not the mean. A single short 5-min sprint or an
+// abandoned session used to drag the average way below what the task really
+// takes, which made the number feel wrong.
+const median = (nums) => {
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 };
 
 // A habit has to be something you actually come back to: at least 3 SEPARATE
@@ -74,7 +94,11 @@ export default function HabitPatterns({ theme }) {
           title,
           count: days.length,
           frequency: fmtFrequency(days.length, spanDays),
-          avgDuration: d ? fmtDuration(d.reduce((a, b) => a + b, 0) / d.length) : null,
+          avgDuration: d ? fmtDuration(median(d)) : null,
+          // Show the spread too, so one quick sprint doesn't look like the whole story.
+          range: d && d.length > 1 && Math.max(...d) - Math.min(...d) >= 120
+            ? `${fmtDuration(Math.min(...d))}–${fmtDuration(Math.max(...d))}`
+            : null,
           sessions: d ? d.length : 0,
         };
       })
@@ -112,7 +136,9 @@ export default function HabitPatterns({ theme }) {
               <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
                 <Timer className="w-3 h-3" />
                 Usually takes you {h.avgDuration}
-                <span className="text-gray-400">({h.sessions} timed {h.sessions === 1 ? 'session' : 'sessions'})</span>
+                <span className="text-gray-400">
+                  ({h.range ? `${h.range}, ` : ''}{h.sessions} timed {h.sessions === 1 ? 'session' : 'sessions'})
+                </span>
               </p>
             ) : (
               <p className="text-[11px] text-gray-400 mt-1">Time it with a Sprint or the Launchpad to learn how long this takes you</p>
