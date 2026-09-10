@@ -80,18 +80,28 @@ Deno.serve(async (req) => {
       const userTasks = activeTasksByUser[email] || [];
       const todaysTasks = getTodaysTasks(userTasks, now, timeZone);
 
+      // Claim today BEFORE sending. If this write fails (or the run is cut off
+      // after the push goes out), the next 30-min run would otherwise re-send
+      // the same digest — which is exactly the double notification users saw.
+      try {
+        await base44.asServiceRole.entities.User.update(user.id, { last_digest_date: todayStr });
+      } catch (e) {
+        console.error(`[DIGEST] Could not claim digest for ${email}, skipping send:`, e);
+        continue;
+      }
+
       // Generate + send the digest
       const firstName = (user.full_name || '').split(' ')[0] || 'friend';
       const message = await generateDigestMessage(todaysTasks, firstName);
       const sent = await sendDigestNotification(email, user, message);
 
       if (sent) {
-        try {
-          await base44.asServiceRole.entities.User.update(user.id, { last_digest_date: todayStr });
-        } catch (e) {
-          console.error(`[DIGEST] Failed to update last_digest_date for ${email}:`, e);
-        }
         digestsSent.push({ email, taskCount: todaysTasks.length });
+      } else {
+        // Release the claim so a later run today can retry.
+        try {
+          await base44.asServiceRole.entities.User.update(user.id, { last_digest_date: user.last_digest_date || null });
+        } catch {}
       }
     }
 
