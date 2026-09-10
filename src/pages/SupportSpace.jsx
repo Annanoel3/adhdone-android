@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageCircleHeart, Send, Loader2, Info, Mic } from "lucide-react"; // Added Mic icon
 import { APP_FEATURE_GUIDE } from "@/components/utils/appFeatureGuide";
+import SupportEscalationCard from "@/components/support/SupportEscalationCard";
 
 export default function SupportSpace() {
   const [theme, setTheme] = useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
@@ -14,6 +15,9 @@ export default function SupportSpace() {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [conversationId, setConversationId] = useState(null);
+  // Set when the AI decides this should go to the developer — the user is asked
+  // first, and nothing leaves the app unless they say yes.
+  const [escalation, setEscalation] = useState(null);
   const messagesEndRef = useRef(null);
   const specialMode = localStorage.getItem('special_mode') || 'normal';
 
@@ -176,10 +180,25 @@ YOUR RESPONSE GUIDELINES:
 6. **DON'T USE THEIR NAME REPEATEDLY.**
 7. **NEVER PRETEND TO BE A PERSON.** If asked, say plainly you're a tool built into the app.
 
+ESCALATING TO THE DEVELOPER:
+If the user is frustrated with the app, reports something broken you can't resolve, asks for a feature, or asks a question about the app that the reference above genuinely doesn't answer — after your best single troubleshooting suggestion has already failed or clearly doesn't apply — tell them this is worth passing to the developer, then end your message with this exact tag on its own final line: [OFFER_SUPPORT]
+Rules for the tag: never mention or explain the tag itself, never include it for ADHD/strategy questions you can answer, and never promise a reply timeline. Do not offer it more than once for the same issue.
+
 Answer plainly and practically, then stop.`;
 
       const result = await base44.functions.invoke('supportSpaceChat', { prompt, userMessage: userMessageContent });
-      const response = result?.data?.message;
+      const rawResponse = result?.data?.message || '';
+      const wantsSupport = rawResponse.includes('[OFFER_SUPPORT]');
+      const response = rawResponse.replace(/\[OFFER_SUPPORT\]/g, '').trim();
+
+      if (wantsSupport) {
+        setEscalation({
+          message: userMessageContent,
+          transcript: [...currentMessagesForPrompt, { role: 'assistant', content: response }]
+            .map(m => `${m.role === 'user' ? 'User' : 'Support Space'}: ${m.content}`)
+            .join('\n\n'),
+        });
+      }
       
       // Add AI response to chat
       setMessages(prev => [...prev, { role: "assistant", content: response }]);
@@ -305,6 +324,7 @@ Answer plainly and practically, then stop.`;
     setMessages([]);
     setConversationId(null);
     setCurrentInput("");
+    setEscalation(null);
   };
 
   return (
@@ -526,6 +546,14 @@ Answer plainly and practically, then stop.`;
                       <p className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>Thinking...</p>
                     </div>
                   </div>
+                )}
+                {escalation && !isLoading && (
+                  <SupportEscalationCard
+                    message={escalation.message}
+                    transcript={escalation.transcript}
+                    theme={theme}
+                    onDismiss={() => setEscalation(null)}
+                  />
                 )}
                 <div ref={messagesEndRef} />
               </CardContent>
