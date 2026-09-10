@@ -30,7 +30,7 @@ const WAYS = [
 export default function OtherWaysStepCard({ isLast, stepNumber, totalSteps, onNext, onSkip }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onSkip} />
+      <div className="absolute inset-0 bg-black/60" />
 
       <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto">
         <h3 className="text-lg font-bold text-gray-900">Other ways to add stuff 📥</h3>

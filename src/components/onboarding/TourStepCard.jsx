@@ -25,7 +25,9 @@ export default function TourStepCard({ step, isLast, stepNumber, totalSteps, onN
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 bg-black/60" onClick={onSkip} />
+      {/* No tap-to-dismiss — the tour only advances via the button, so a stray
+          tap on the screen can't skip an intro the user hasn't read yet. */}
+      <div className="absolute inset-0 bg-black/60" />
 
       {rect && (
         <div
