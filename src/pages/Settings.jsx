@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import HomeZipCard from '@/components/settings/HomeZipCard';
 import QuickCaptureCard from '@/components/settings/QuickCaptureCard';
+import TimerSoundCard from '@/components/settings/TimerSoundCard';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -319,6 +320,8 @@ export default function Settings() {
             )}
           </CardContent>
         </Card>
+
+        <TimerSoundCard theme={theme} />
 
         <QuickCaptureCard theme={theme} />
 

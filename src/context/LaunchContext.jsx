@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { usePomodoro } from '@/context/PomodoroContext';
 import { base44 } from '@/api/base44Client';
 import { scheduleReminder, cancelScheduledReminder } from '@/components/utils/reminderScheduler';
-import { playWarning, playLiftoff, playSprintEnd, haptic } from '@/components/utils/launchSounds';
+import { playWarning, haptic } from '@/components/utils/launchSounds';
+import { startAlertLoop, stopAlertLoop } from '@/components/utils/alertLoop';
+import { getLaunchAlertSound } from '@/components/utils/completionSounds';
 import LaunchpadTransition from '@/components/launch/LaunchpadTransition';
 import SprintPopup from '@/components/launch/SprintPopup';
 import { Rocket, Timer, X } from 'lucide-react';
@@ -34,8 +36,8 @@ export function LaunchProvider({ children }) {
   useEffect(() => { pomodoroRef.current = pomodoro; }, [pomodoro]);
 
   const fireLiftoff = useCallback(async (taskId) => {
-    playLiftoff();
-    haptic([200, 100, 200, 100, 300]);
+    // Alert repeats (sound + vibration) until the user taps something.
+    startAlertLoop(getLaunchAlertSound());
     // Liftoff enters Focus Mode for the chosen task — silences other recurring
     // reminders and enables hourly check-ins on it. The FocusModePrompt (in the
     // Layout) listens for the broadcast event and shows the active session, which
@@ -83,8 +85,7 @@ export function LaunchProvider({ children }) {
           // Sprint ended while away — show the checkpoint.
           localStorage.removeItem(SPRINT_KEY);
           if (sp.notifId) cancelScheduledReminder(sp.notifId).catch(() => {});
-          playSprintEnd();
-          haptic([100, 50, 100]);
+          startAlertLoop(getLaunchAlertSound());
           setSprint(sp);
           setSprintEnded(true);
         } else {
@@ -159,6 +160,7 @@ export function LaunchProvider({ children }) {
   }, [launchpad]);
 
   const cancelSprint = useCallback(() => {
+    stopAlertLoop();
     const p = pomodoroRef.current;
     if (p) p.resetTimer(); // stop the sprint's pomodoro so the mini bar disappears
     if (sprint?.notifId) cancelScheduledReminder(sprint.notifId).catch(() => {});
@@ -213,11 +215,11 @@ export function LaunchProvider({ children }) {
           onComplete={() => {
             if (sprint.notifId) cancelScheduledReminder(sprint.notifId).catch(() => {});
             localStorage.removeItem(SPRINT_KEY);
-            playSprintEnd();
-            haptic([100, 50, 100]);
+            startAlertLoop(getLaunchAlertSound());
             setSprintEnded(true);
           }}
           onKeepGoing={async () => {
+            stopAlertLoop();
             // "Keep going" → hand off into Focus Mode for this task (same destination
             // as the Launchpad liftoff and the Home Focus button). Reset the sprint's
             // pomodoro so the Focus Mode overlay's own optional timer takes over.
@@ -243,6 +245,7 @@ export function LaunchProvider({ children }) {
             setSprintEnded(false);
           }}
           onStop={() => {
+            stopAlertLoop();
             const p = pomodoroRef.current;
             if (p) p.resetTimer();
             localStorage.removeItem(SPRINT_KEY);

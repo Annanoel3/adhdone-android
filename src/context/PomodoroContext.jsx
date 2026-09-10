@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { schedulePush } from '@/functions/schedulePush';
 import { cancelScheduled } from '@/functions/cancelScheduled';
+import { COMPLETION_SOUNDS } from '@/components/utils/completionSounds';
+import { startAlertLoop, stopAlertLoop } from '@/components/utils/alertLoop';
 
 const PomodoroContext = createContext(null);
 
@@ -88,25 +90,14 @@ export function PomodoroProvider({ children }) {
     }
   }, []);
 
-  const completionSounds = {
-    joyful_melody: { name: "Joyful Melody", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/Joyful%20Melody.wav" },
-    piano_melody: { name: "Piano Melody", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/Piano%20Melody.mp3" },
-    short_notification: { name: "Short Notification", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/Short%20Notification.wav" },
-    short_piano: { name: "Short Piano Notification", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/Short%20Piano%20Notification.mp3" },
-    applause: { name: "Applause", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/Applause.wav" },
-    jr_station: { name: "JR Station Notification", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/JR%20Station%20Notification.mp3" },
-    jr_station_3: { name: "JR Station Notification 3", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/JR%20Station%20Notification%203.mp3" },
-    jr_osaka_loop: { name: "JR Osaka Loop", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/JR%20Osaka%20Loop%204.mp3" },
-    jr_morning_tranquility: { name: "JR Morning Tranquility", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/JR%20Morning%20Tranquility.mp3" },
-    jr_flower_shop: { name: "JR Flower Shop", url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/JR%20Flower%20Shop.mp3" },
-  };
+  const completionSounds = COMPLETION_SOUNDS;
 
   const breakEndSound = "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/Notifications/TX6WF5K-reveal-asia.mp3";
 
+  // Loop the alert (sound + vibration) until the user taps something — a single
+  // chime at the end of a session is far too easy to miss.
   const playCompletionSound = useCallback((isBreakEnd = false) => {
-    const audio = audioRef.current || new Audio();
-    audio.src = isBreakEnd ? breakEndSound : completionSounds[completionSound]?.url;
-    audio.play().catch(() => {});
+    startAlertLoop(isBreakEnd ? '__break_end__' : completionSound, isBreakEnd ? breakEndSound : undefined);
   }, [completionSound]);
 
   const handleTimerComplete = useCallback((currentMode, currentSessionCount) => {
@@ -181,6 +172,7 @@ export function PomodoroProvider({ children }) {
   }, [timeLeft]);
 
   const toggleTimer = useCallback(() => {
+    stopAlertLoop();
     setIsActive(prev => {
       const nowActive = !prev;
       if (nowActive) {
@@ -198,6 +190,7 @@ export function PomodoroProvider({ children }) {
   }, [scheduleTimerNotification, cancelTimerNotification, mode]);
 
   const resetTimer = useCallback(() => {
+    stopAlertLoop();
     cancelTimerNotification();
     setIsActive(false);
     setMode('work');
