@@ -243,6 +243,11 @@ urgency — judge the real consequence of it not happening: what breaks, spoils,
   costs money, or leaves someone waiting. "urgent" for real same-day stakes,
   down to "low" for nice-to-haves. A date attached does not make something
   urgent; inflating everything makes the real ones invisible.
+  But small does not mean low. A chore that gets WORSE, smellier, or harder the
+  longer it sits — dishes, trash, litter box, laundry left wet, food going bad,
+  anything involving a pet or another person depending on it — is at least
+  "medium", and "high" once it's clearly overdue. "low" is for things that would
+  be exactly as fine next week as they are today.
 
 energy_required — effort. Anything that means leaving the house is "high"
   (the app batches those into one trip). At-home and online things are low or
