@@ -6,17 +6,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  LayoutDashboard, 
-  ListTodo, 
-  Timer, 
-  MessageCircleHeart, 
-  Lightbulb, 
+import {
+  LayoutDashboard,
+  ListTodo,
+  Timer,
+  MessageCircleHeart,
+  Lightbulb,
   TrendingUp,
-  Share2,
-  MessageCircle,
   Users,
-  Trophy
+  Plus,
+  Mic,
+  Camera,
+  Zap,
+  Share2,
+  CalendarDays,
+  Cake,
+  Rocket,
+  Moon,
+  Sparkles
 } from "lucide-react";
 
 export default function AppGuideModal({ isOpen, onClose, theme }) {
@@ -24,59 +31,89 @@ export default function AppGuideModal({ isOpen, onClose, theme }) {
     {
       icon: LayoutDashboard,
       title: "Home",
-      description: "Your command center. See today's tasks, quick actions, daily tips, and track your progress at a glance."
+      description: "Your command center. Today's tasks, quick actions, a daily tip, and gentle nudges when you need them."
+    },
+    {
+      icon: Plus,
+      title: "Adding a task — pick whatever's easiest",
+      description: "Say it, type it, snap it, or send it. The AI figures out the date, the steps, and how often to bug you:",
+      subItems: [
+        {
+          icon: Mic,
+          title: "Talk it out",
+          description: "Tap the mic and just say it — 'remind me to call the dentist Friday'"
+        },
+        {
+          icon: Camera,
+          title: "Snap a photo",
+          description: "Take a picture of a flyer, form, invite, or handwritten list and it becomes a task"
+        },
+        {
+          icon: Share2,
+          title: "Share from any app",
+          description: "Share a text, email, or link into ADHDone and it turns into a task"
+        },
+        {
+          icon: Zap,
+          title: "Quick Capture",
+          description: "A pinned notification shortcut so you can dump a thought without opening the app (turn it on in Settings)"
+        }
+      ]
     },
     {
       icon: ListTodo,
       title: "Tasks",
-      description: "Manage all your tasks with ADHD-friendly features like urgency levels, energy requirements, and smart reminders."
+      description: "Everything in one place with urgency, energy level, subtasks, and smart reminders. Push a due date, break a task into steps, or drop it on the Back Burner when it's genuinely not today's problem — Back Burner tasks go quiet until you bring them back."
+    },
+    {
+      icon: CalendarDays,
+      title: "Calendar",
+      description: "See your tasks and events by day or week, always starting on today. Connect Google Calendar to pull your real events in — they show up labeled so you can tell them from your own tasks."
+    },
+    {
+      icon: Cake,
+      title: "Birthdays",
+      description: "Birthdays live on their own page and repeat every year. Get reminded a week out, the day before, and the day of — plus help drafting the text so you actually send it."
+    },
+    {
+      icon: Rocket,
+      title: "Launchpad",
+      description: "Stuck at the starting line? Launchpad gets you moving with a countdown, a tiny first step, or a short sprint — because starting is the hard part."
     },
     {
       icon: Timer,
       title: "Focus Timer",
-      description: "Use Pomodoro-style work sessions to stay focused. Set work and break intervals that work for your brain."
-    },
-    {
-      icon: TrendingUp,
-      title: "Progress",
-      description: "Visualize your productivity trends, streaks, and achievements. See how far you've come!"
-    },
-    {
-      icon: MessageCircleHeart,
-      title: "Support Space",
-      description: "A judgment-free AI companion for when you need to talk, vent, or process your thoughts."
+      description: "Pomodoro-style sessions with work and break lengths that fit your brain. Focus Mode quiets your other reminders while you're in it."
     },
     {
       icon: Lightbulb,
       title: "Parking Lot",
-      description: "Capture ideas and thoughts without losing focus on your current task. Review and convert them to tasks later."
+      description: "Brain dump ideas without derailing what you're doing. Make checklists, attach photos and notes, then convert anything into a task later."
     },
     {
-      icon: Share2,
-      title: "Community",
-      description: "Connect with others for accountability and support:",
-      subItems: [
-        {
-          icon: Share2,
-          title: "Accountability",
-          description: "Find and manage accountability partners who keep you on track"
-        },
-        {
-          icon: MessageCircle,
-          title: "Chat",
-          description: "Message your accountability partners directly"
-        },
-        {
-          icon: Users,
-          title: "Focus Rooms",
-          description: "Join virtual co-working sessions with others to stay motivated"
-        },
-        {
-          icon: Trophy,
-          title: "Leaderboard",
-          description: "See how you rank among other users (privacy settings available)"
-        }
-      ]
+      icon: TrendingUp,
+      title: "Insights",
+      description: "Your patterns, streaks, focus time, and achievements — what times you actually get things done, and proof of how far you've come."
+    },
+    {
+      icon: MessageCircleHeart,
+      title: "Support Space",
+      description: "A judgment-free space for ADHD and executive-function strategy — planning, unsticking, venting, or figuring out how to use the app."
+    },
+    {
+      icon: Sparkles,
+      title: "Themes",
+      description: "Light, dark, colorful, or Spicy Brains — plus seasonal themes that change with the calendar once you unlock them."
+    },
+    {
+      icon: Moon,
+      title: "Quiet Hours",
+      description: "Set the hours you don't want to be bothered and reminders hold until morning. Set it in Settings."
+    },
+    {
+      icon: Users,
+      title: "Community — coming soon",
+      description: "Accountability partners, chat, focus rooms, and leaderboards are on the way. We're waiting until there are enough people here to make it actually worth showing up for."
     }
   ];
 
