@@ -12,7 +12,9 @@ import { Input } from '@/components/ui/input';
 import { MapPin } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
-const SEEN_KEY = 'home_zip_prompt_seen';
+// v2: the prompt moved from "on launch" to "first errand", so everyone who
+// hasn't actually saved a zip yet gets one more chance to see it.
+const SEEN_KEY = 'home_zip_prompt_seen_v2';
 
 // One-time, skippable ask for a home zip code. Only asked the first time the
 // user creates something that actually leaves the house (an errand / a task
@@ -27,7 +29,7 @@ export default function HomeZipPrompt({ user, theme }) {
     if (!user) return;
     // Saved on the profile too, so a new device / cleared browser storage
     // doesn't start asking all over again.
-    if (localStorage.getItem(SEEN_KEY) === 'true' || user.home_zip_prompt_seen) return;
+    if (localStorage.getItem(SEEN_KEY) === 'true' || user.home_zip_prompt_seen_v2) return;
     if (user.home_zipcode) {
       localStorage.setItem(SEEN_KEY, 'true');
       return;
@@ -40,7 +42,7 @@ export default function HomeZipPrompt({ user, theme }) {
   const dismiss = () => {
     localStorage.setItem(SEEN_KEY, 'true');
     setOpen(false);
-    base44.auth.updateMe({ home_zip_prompt_seen: true }).catch(() => {});
+    base44.auth.updateMe({ home_zip_prompt_seen_v2: true }).catch(() => {});
   };
 
   const handleSave = async () => {
