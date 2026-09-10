@@ -234,14 +234,16 @@ export default function Home() {
             <div className="lg:col-span-2 space-y-6 min-w-0">
               <PendingTaskCards theme={theme} />
 
-              <TodaysTasks
-                tasks={tasks}
-                theme={theme}
-                onTaskAction={handleTaskComplete}
-                onViewDetails={handleViewDetails}
-                onUpdateTask={handleTaskUpdate}
-                specialMode={specialMode}
-              />
+              <div data-tour="todays-tasks">
+                <TodaysTasks
+                  tasks={tasks}
+                  theme={theme}
+                  onTaskAction={handleTaskComplete}
+                  onViewDetails={handleViewDetails}
+                  onUpdateTask={handleTaskUpdate}
+                  specialMode={specialMode}
+                />
+              </div>
 
               <UpcomingBirthdayCard
                 tasks={tasks}

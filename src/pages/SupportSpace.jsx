@@ -383,54 +383,39 @@ Answer plainly and practically, then stop.`;
                 </p>
               </div>
 
-              <div className="flex flex-col items-center gap-6">
+              <div className="flex items-end gap-2">
+                <Textarea
+                  value={currentInput}
+                  onChange={(e) => setCurrentInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+                  className="min-h-[100px] text-base flex-1"
+                  disabled={isLoading}
+                />
                 <button
                   onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
                   disabled={isLoading}
-                  className={`w-32 h-32 rounded-full flex items-center justify-center transition-all ${
+                  title="Tap to speak"
+                  className={`w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${
                     isRecording
                       ? 'bg-red-500 animate-pulse'
                       : theme === 'minimalist'
                         ? 'bg-purple-600 hover:bg-purple-700'
                         : 'bg-gradient-to-br from-purple-600 to-pink-600'
-                  } shadow-2xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed`}
+                  } shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isLoading ? (
-                    <Loader2 className="w-16 h-16 text-white animate-spin" />
+                    <Loader2 className="w-5 h-5 text-white animate-spin" />
                   ) : (
-                    <Mic className="w-16 h-16 text-white" />
+                    <Mic className="w-5 h-5 text-white" />
                   )}
                 </button>
-                <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Tap to Speak</p>
-                <p className={`text-xs text-center max-w-md ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Speak naturally - your message will be transcribed and sent automatically
-                </p>
               </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className={`w-full border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`} />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className={`px-2 ${theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-500'}`}>
-                    Or type
-                  </span>
-                </div>
-              </div>
-
-              <Textarea
-                value={currentInput}
-                onChange={(e) => setCurrentInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="Or type your message here... (Press Enter to send, Shift+Enter for new line)"
-                className="min-h-[100px] text-base"
-                disabled={isLoading}
-              />
               
               <div className={`p-4 rounded-lg ${
                 theme === 'minimalist' 
@@ -556,51 +541,39 @@ Answer plainly and practically, then stop.`;
               ) : `bg-white/70 backdrop-blur-md border border-purple-400/30 ${specialMode}-card`
             }`}>
               <CardContent className="p-4 space-y-3">
-                <div className="flex justify-center">
+                <div className="flex items-end gap-2">
+                  <Textarea
+                    value={currentInput}
+                    onChange={(e) => setCurrentInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Continue the conversation... (Press Enter to send)"
+                    className="min-h-[80px] flex-1"
+                    disabled={isLoading}
+                  />
                   <button
                     onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
                     disabled={isLoading}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+                    title="Tap to speak"
+                    className={`w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${
                       isRecording
                         ? 'bg-red-500 animate-pulse'
                         : theme === 'minimalist'
                           ? 'bg-purple-600 hover:bg-purple-700'
                           : 'bg-gradient-to-br from-purple-600 to-pink-600'
-                    } shadow-lg hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed`}
+                    } shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {isLoading ? (
-                      <Loader2 className="w-10 h-10 text-white animate-spin" />
+                      <Loader2 className="w-5 h-5 text-white animate-spin" />
                     ) : (
-                      <Mic className="w-10 h-10 text-white" />
+                      <Mic className="w-5 h-5 text-white" />
                     )}
                   </button>
                 </div>
-                <p className={`text-xs text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Tap to speak - message sends automatically</p>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className={`w-full border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`} />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className={`px-2 ${theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-500'}`}>
-                      Or type
-                    </span>
-                  </div>
-                </div>
-
-                <Textarea
-                  value={currentInput}
-                  onChange={(e) => setCurrentInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder="Continue the conversation... (Press Enter to send)"
-                  className="min-h-[80px]"
-                  disabled={isLoading}
-                />
 
                 <Button
                   onClick={handleSend}

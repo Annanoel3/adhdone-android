@@ -43,6 +43,7 @@ export default function QuickActions({ theme, user }) {
       {actions.map((action) => (
         <Card
           key={action.label}
+          data-tour={action.label === 'Launch' ? 'launch' : 'add-task'}
           className={`${specialMode !== 'normal' ? `${specialMode}-card` : ''} cursor-pointer border-none shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 ${
             specialMode === 'normal' ? (
               theme === 'dark' ? 'bg-gray-800' : 'bg-white/80 backdrop-blur-sm'
